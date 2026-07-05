@@ -1,5 +1,7 @@
 # Where Did I Put It? 🗄️
 
+project pinned to SDK 54 until Expo Go for 57 clears App Store review — upgrade later with npx expo install expo@latest + --fix.
+
 A household item location tracker. Log where you stashed things
 ("Hallway closet › Top shelf › Blue box"), search them later, sync
 across the household.

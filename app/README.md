@@ -25,6 +25,12 @@ In the output, you'll find options to open the app in a
 
 You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
 
+## Troubleshooting: Expo Go link/QR not connecting
+
+If Expo Go can't connect to the dev server (link times out, QR code does nothing), and a VPN (e.g. NordVPN) is running: **disconnect the VPN before running `npx expo start`.**
+
+Expo picks the first non-internal IPv4 network interface it finds to build the `exp://` link. A full-tunnel VPN adds its own virtual adapter, which often enumerates before your real Wi-Fi adapter — so the link points at an unreachable VPN tunnel address instead of your LAN IP. Your phone and laptop being on the same Wi-Fi network isn't enough; the VPN adapter has to be gone (or disconnected) for Expo to pick the right one.
+
 ## Get a fresh project
 
 When you're ready, run:
@@ -34,12 +40,6 @@ npm run reset-project
 ```
 
 This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
 
 ## Learn more
 
