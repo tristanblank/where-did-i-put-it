@@ -1,24 +1,108 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import {
+  DarkTheme as NavigationDarkTheme,
+  DefaultTheme as NavigationDefaultTheme,
+  Theme,
+  ThemeProvider,
+} from '@react-navigation/native';
+import {
+  EncodeSansSemiExpanded_400Regular,
+  EncodeSansSemiExpanded_500Medium,
+  EncodeSansSemiExpanded_600SemiBold,
+  EncodeSansSemiExpanded_700Bold,
+  EncodeSansSemiExpanded_800ExtraBold,
+  useFonts,
+} from '@expo-google-fonts/encode-sans-semi-expanded';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Colors, Fonts } from '@/constants/theme';
+import { ItemsProvider, useItemsStore } from '@/lib/items-store';
+
+SplashScreen.preventAutoHideAsync();
+
+const navFonts: Theme['fonts'] = {
+  regular: { fontFamily: Fonts.regular, fontWeight: '400' },
+  medium: { fontFamily: Fonts.medium, fontWeight: '500' },
+  bold: { fontFamily: Fonts.bold, fontWeight: '700' },
+  heavy: { fontFamily: Fonts.extraBold, fontWeight: '800' },
+};
+
+const LightNavigationTheme: Theme = {
+  ...NavigationDefaultTheme,
+  colors: {
+    ...NavigationDefaultTheme.colors,
+    primary: Colors.light.accent,
+    background: Colors.light.bg,
+    card: Colors.light.tile,
+    text: Colors.light.ink,
+    border: Colors.light.border,
+    notification: Colors.light.danger,
+  },
+  fonts: navFonts,
+};
+
+const DarkNavigationTheme: Theme = {
+  ...NavigationDarkTheme,
+  colors: {
+    ...NavigationDarkTheme.colors,
+    primary: Colors.dark.accent,
+    background: Colors.dark.bg,
+    card: Colors.dark.tile,
+    text: Colors.dark.ink,
+    border: Colors.dark.border,
+    notification: Colors.dark.danger,
+  },
+  fonts: navFonts,
+};
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  anchor: 'index',
 };
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  return (
+    <ItemsProvider>
+      <RootLayoutNav />
+    </ItemsProvider>
+  );
+}
+
+function RootLayoutNav() {
+  const { theme, loading } = useItemsStore();
+  const [fontsLoaded, fontError] = useFonts({
+    EncodeSansSemiExpanded_400Regular,
+    EncodeSansSemiExpanded_500Medium,
+    EncodeSansSemiExpanded_600SemiBold,
+    EncodeSansSemiExpanded_700Bold,
+    EncodeSansSemiExpanded_800ExtraBold,
+  });
+
+  const ready = (fontsLoaded || fontError) && !loading;
+
+  useEffect(() => {
+    if (ready) {
+      SplashScreen.hideAsync();
+    }
+  }, [ready]);
+
+  if (!ready) {
+    return null;
+  }
+
+  const navigationTheme = theme === 'dark' ? DarkNavigationTheme : LightNavigationTheme;
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    <ThemeProvider value={navigationTheme}>
+      <Stack screenOptions={{ contentStyle: { backgroundColor: navigationTheme.colors.background } }}>
+        <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
+        <Stack.Screen name="room/[room]" options={{ title: 'Room' }} />
+        <Stack.Screen name="add" options={{ title: 'Add Item' }} />
+        <Stack.Screen name="item/[id]" options={{ title: 'Item Detail' }} />
       </Stack>
-      <StatusBar style="auto" />
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
   );
 }

@@ -1,4 +1,4 @@
-# "Where Did I Put It?" — App Store Ship Plan
+# "Stasher" — App Store Ship Plan
 
 A step-by-step execution plan, sequenced so you always have something working. Each phase ends with a checkpoint you can actually verify. Estimated pace: nights-and-weekends with a newborn, so phases are small.
 

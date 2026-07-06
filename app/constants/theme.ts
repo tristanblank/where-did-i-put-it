@@ -1,53 +1,34 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import { Platform } from 'react-native';
-
-const tintColorLight = '#0a7ea4';
-const tintColorDark = '#fff';
-
 export const Colors = {
   light: {
-    text: '#11181C',
-    background: '#fff',
-    tint: tintColorLight,
-    icon: '#687076',
-    tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    bg: '#F2F4F7',
+    tile: '#FFFFFF',
+    tileAlt: '#E9EDF2',
+    ink: '#1B2029',
+    sub: '#66707D',
+    border: '#E3E7ED',
+    accent: '#2547D0',
+    accentInk: '#FFFFFF',
+    accentSoft: '#E4EAFB',
+    danger: '#C0392B',
   },
   dark: {
-    text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
-    icon: '#9BA1A6',
-    tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    bg: '#0F1115',
+    tile: '#1A1D24',
+    tileAlt: '#23262F',
+    ink: '#F2F4F8',
+    sub: '#8B93A1',
+    border: '#2A2E38',
+    accent: '#6E8BFF',
+    accentInk: '#0F1115',
+    accentSoft: '#232B47',
+    danger: '#FF8A7A',
   },
-};
+} as const;
 
-export const Fonts = Platform.select({
-  ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
-    sans: 'system-ui',
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
-    serif: 'ui-serif',
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
-    rounded: 'ui-rounded',
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-    serif: "Georgia, 'Times New Roman', serif",
-    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
-    mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
-  },
-});
+export const Fonts = {
+  regular: 'EncodeSansSemiExpanded_400Regular',
+  medium: 'EncodeSansSemiExpanded_500Medium',
+  semiBold: 'EncodeSansSemiExpanded_600SemiBold',
+  bold: 'EncodeSansSemiExpanded_700Bold',
+  extraBold: 'EncodeSansSemiExpanded_800ExtraBold',
+} as const;

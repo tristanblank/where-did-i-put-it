@@ -1,4 +1,4 @@
-# Where Did I Put It? 🗄️
+# Stasher 🗄️
 
 project pinned to SDK 54 until Expo Go for 57 clears App Store review — upgrade later with npx expo install expo@latest + --fix.
 
@@ -33,8 +33,8 @@ where-did-i-put-it/
 - [x] Concept + prototypes
 - [x] Ship plan written
 - [ ] Phase 0 — accounts & setup
-- [ ] Phase 1 — Expo scaffold
-- [ ] Phase 2 — port the bento prototype
+- [x] Phase 1 — Expo scaffold
+- [x] Phase 2 — port the bento prototype
 - [ ] Phase 3 — first TestFlight build
 - [ ] Phase 4 — Supabase backend & household sync
 - [ ] Phase 5 — store readiness
