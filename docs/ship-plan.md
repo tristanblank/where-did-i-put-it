@@ -6,14 +6,15 @@ A step-by-step execution plan, sequenced so you always have something working. E
 
 ## Phase 0 — Accounts & Setup (1 evening)
 
-1. Enroll in the **Apple Developer Program** ($99/yr) at developer.apple.com. Do this first — enrollment approval can take a day or two, and it blocks TestFlight later.
-2. Create an **Expo account** (expo.dev) and install the tooling on your machine:
+1. [x] Enroll in the **Apple Developer Program** ($99/yr) at developer.apple.com. Do this first — enrollment approval can take a day or two, and it blocks TestFlight later.
+2. [x] Create an **Expo account** (expo.dev) and install the tooling on your machine:
    - Node.js (LTS version)
    - `npm install -g eas-cli`
-3. Create a **Supabase account** (supabase.com) and spin up a free project. Name it, save the project URL and anon key somewhere safe. You won't touch it again until Phase 4.
-4. Create a GitHub repo for the project.
+3. [ ] Create a **Supabase account** (supabase.com) and spin up a free project. Name it, save the project URL and anon key somewhere safe. You won't touch it again until Phase 4.
+4. [x] Create a GitHub repo for the project.
 
 **Checkpoint:** Apple enrollment confirmed, `eas --version` runs, empty Supabase project exists.
+**Status:** Apple Developer Program active, `eas-cli` installed globally and logged in, GitHub repo live at github.com/tristanblank/where-did-i-put-it. Supabase account still pending — not needed until Phase 4.
 
 ---
 
@@ -49,13 +50,14 @@ Work from the bento artifact — the logic ports directly, the JSX needs transla
 
 Ship with local-only storage. Sync comes later.
 
-1. Configure `app.json`: app name, bundle identifier (e.g. `com.tristan.wheredidiputit`), version 1.0.0.
-2. Make an app icon (1024×1024) and splash screen. Don't overthink it — a label-tape chip on a solid background works. (Happy to design options with you.)
-3. Run `eas build --platform ios` then `eas submit` — EAS compiles in the cloud and pushes to App Store Connect. No Xcode required.
-4. In **App Store Connect**, create the app record and enable **TestFlight**. Add yourself and your wife as internal testers.
-5. Install via TestFlight on both phones.
+1. [x] Configure `app.json`: app name, bundle identifier (`com.tb.wheredidiputit`), version 1.0.0.
+2. [x] Make an app icon (1024×1024) and splash screen — stacked-crates-and-location-pin mark on the brand cobalt background.
+3. [x] Run `eas build --platform ios` then `eas submit` — build is live in App Store Connect.
+4. [x] In **App Store Connect**, create the app record ("Stasher - Home Inventory" — "Stasher" alone was already taken) and enable **TestFlight**.
+5. [ ] Install via TestFlight on both phones — confirmed working on Tristan's; wife not yet added as a tester.
 
 **Checkpoint:** Both of you running the app from TestFlight. Use it for 1–2 weeks. Log every annoyance in a note — that's your polish backlog.
+**Status:** Pipeline proven end-to-end (build → submit → TestFlight install confirmed working). First polish-backlog item already shipped: long-press a room tile to rename it, change its icon, or delete it (only when empty) — added because default rooms like "Nursery" don't fit every household.
 
 ---
 
