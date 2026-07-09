@@ -1,12 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 import { Chip } from '@/components/chip';
 import { ItemCard } from '@/components/item-card';
 import { LabelPath } from '@/components/label-path';
-import { ROOM_ICONS } from '@/constants/defaults';
+import { RoomActionsSheet } from '@/components/room-actions-sheet';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useTheme } from '@/hooks/use-theme';
@@ -15,8 +16,11 @@ import { useItemsStore } from '@/lib/items-store';
 export default function HomeScreen() {
   const router = useRouter();
   const t = useTheme();
-  const { items, sortedItems, allRooms, roomCounts, theme, toggleTheme, roomSort, setRoomSort } = useItemsStore();
+  const { items, sortedItems, allRooms, roomCounts, iconForRoom, theme, toggleTheme, roomSort, setRoomSort } =
+    useItemsStore();
   const [query, setQuery] = useState('');
+  const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const longPressTriggered = useRef(false);
 
   const bentoRooms = useMemo(() => {
     const withCounts = allRooms.map((room) => ({ room, count: roomCounts[room] ?? 0 }));
@@ -105,10 +109,25 @@ export default function HomeScreen() {
               {bentoRooms.map(({ room, count }) => (
                 <Pressable
                   key={room}
-                  onPress={() => router.push({ pathname: '/room/[room]', params: { room } })}
+                  onPressIn={() => {
+                    longPressTriggered.current = false;
+                  }}
+                  onLongPress={() => {
+                    longPressTriggered.current = true;
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setActiveRoom(room);
+                  }}
+                  delayLongPress={450}
+                  onPress={() => {
+                    if (longPressTriggered.current) {
+                      longPressTriggered.current = false;
+                      return;
+                    }
+                    router.push({ pathname: '/room/[room]', params: { room } });
+                  }}
                   style={[baseTileStyle(t, theme), styles.smallRoomTile]}>
                   <View>
-                    <Text style={{ fontSize: 22 }}>{ROOM_ICONS[room] ?? '🏠'}</Text>
+                    <Text style={{ fontSize: 22 }}>{iconForRoom(room)}</Text>
                     <View style={styles.roomNameGroup}>
                       <Text style={[styles.roomName, { color: t.ink }]}>{room}</Text>
                     </View>
@@ -151,6 +170,7 @@ export default function HomeScreen() {
           </>
         )}
       </ScrollView>
+      <RoomActionsSheet room={activeRoom} onClose={() => setActiveRoom(null)} />
     </SafeAreaView>
   );
 }

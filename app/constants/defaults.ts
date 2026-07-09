@@ -20,6 +20,12 @@ export const ROOM_ICONS: Record<string, string> = {
   Storage: '📦',
 };
 
+export const ICON_CHOICES: string[] = [
+  '🏠', '🚪', '🍳', '🛋️', '🛏️', '🧸', '🛁', '🖥️',
+  '📦', '🧺', '🧰', '🚗', '🌿', '📚', '🎮', '🪑',
+  '🚿', '🧴', '🧹', '🗄️',
+];
+
 export const POSITIONS: string[] = [
   'Top shelf',
   'Middle shelf',

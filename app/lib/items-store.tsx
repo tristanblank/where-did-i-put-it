@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { DEFAULT_ROOMS } from '@/constants/defaults';
+import { DEFAULT_ROOMS, ROOM_ICONS } from '@/constants/defaults';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
 export type Item = {
@@ -30,6 +30,8 @@ type PersistedData = {
   items: Item[];
   customRooms: string[];
   customSpots: Record<string, string[]>;
+  hiddenRooms: string[];
+  roomIcons: Record<string, string>;
   theme: 'light' | 'dark';
   roomSort: RoomSort;
 };
@@ -45,11 +47,15 @@ type ItemsStore = {
   roomSort: RoomSort;
   loading: boolean;
   spotsForRoom: (room: string) => string[];
+  iconForRoom: (room: string) => string;
   addItem: (input: NewItemInput) => void;
   updateItem: (id: string, input: NewItemInput) => void;
   deleteItem: (id: string) => void;
   addRoom: (name: string) => void;
   addSpot: (room: string, name: string) => void;
+  renameRoom: (oldName: string, newName: string) => boolean;
+  deleteRoom: (room: string) => void;
+  setRoomIcon: (room: string, icon: string) => void;
   toggleTheme: () => void;
   setRoomSort: (sort: RoomSort) => void;
 };
@@ -65,6 +71,8 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<Item[]>([]);
   const [customRooms, setCustomRooms] = useState<string[]>([]);
   const [customSpots, setCustomSpots] = useState<Record<string, string[]>>({});
+  const [hiddenRooms, setHiddenRooms] = useState<string[]>([]);
+  const [roomIcons, setRoomIcons] = useState<Record<string, string>>({});
   const [theme, setTheme] = useState<'light' | 'dark'>(systemScheme ?? 'light');
   const [roomSort, setRoomSortState] = useState<RoomSort>('count');
 
@@ -77,6 +85,8 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
           setItems(data.items ?? []);
           setCustomSpots(data.customSpots ?? {});
           setCustomRooms(data.customRooms ?? []);
+          setHiddenRooms(data.hiddenRooms ?? []);
+          setRoomIcons(data.roomIcons ?? {});
           if (data.theme) setTheme(data.theme);
           if (data.roomSort) setRoomSortState(data.roomSort);
         }
@@ -91,7 +101,7 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   const persist = (over: Partial<PersistedData> = {}) => {
     AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ items, customSpots, customRooms, theme, roomSort, ...over })
+      JSON.stringify({ items, customSpots, customRooms, hiddenRooms, roomIcons, theme, roomSort, ...over })
     ).catch((e) => console.error('Save failed', e));
   };
 
@@ -106,9 +116,14 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     persist({ roomSort: sort });
   };
 
-  const allRooms = useMemo(() => [...Object.keys(DEFAULT_ROOMS), ...customRooms], [customRooms]);
+  const allRooms = useMemo(
+    () => [...Object.keys(DEFAULT_ROOMS), ...customRooms].filter((r) => !hiddenRooms.includes(r)),
+    [customRooms, hiddenRooms]
+  );
 
   const spotsForRoom = (room: string) => [...(DEFAULT_ROOMS[room] ?? []), ...(customSpots[room] ?? [])];
+
+  const iconForRoom = (room: string) => roomIcons[room] ?? ROOM_ICONS[room] ?? '🏠';
 
   const roomCounts = useMemo(() => {
     const c: Record<string, number> = {};
@@ -142,8 +157,10 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     const r = name.trim();
     if (!r || allRooms.includes(r)) return;
     const nextRooms = [...customRooms, r];
+    const nextHidden = hiddenRooms.filter((h) => h !== r);
     setCustomRooms(nextRooms);
-    persist({ customRooms: nextRooms });
+    setHiddenRooms(nextHidden);
+    persist({ customRooms: nextRooms, hiddenRooms: nextHidden });
   };
 
   const addSpot = (room: string, name: string) => {
@@ -152,6 +169,66 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     const nextSpots = { ...customSpots, [room]: [...(customSpots[room] ?? []), s] };
     setCustomSpots(nextSpots);
     persist({ customSpots: nextSpots });
+  };
+
+  const renameRoom = (oldName: string, newName: string) => {
+    const n = newName.trim();
+    if (!n || n === oldName || allRooms.includes(n)) return false;
+
+    const nextSpots = { ...customSpots, [n]: spotsForRoom(oldName) };
+    delete nextSpots[oldName];
+
+    const icon = roomIcons[oldName] ?? ROOM_ICONS[oldName];
+    const nextIcons = { ...roomIcons, [n]: icon ?? '🏠' };
+    delete nextIcons[oldName];
+
+    // If the new name reuses a built-in default room's name, let that hardcoded
+    // entry serve the slot instead of adding a duplicate custom-room entry.
+    const nextCustomRooms = DEFAULT_ROOMS[n]
+      ? customRooms.filter((r) => r !== oldName)
+      : [...customRooms.filter((r) => r !== oldName), n];
+    const nextHidden = DEFAULT_ROOMS[oldName]
+      ? [...hiddenRooms.filter((h) => h !== n), oldName]
+      : hiddenRooms.filter((h) => h !== n);
+
+    const nextItems = items.map((i) => (i.room === oldName ? { ...i, room: n } : i));
+
+    setCustomSpots(nextSpots);
+    setRoomIcons(nextIcons);
+    setCustomRooms(nextCustomRooms);
+    setHiddenRooms(nextHidden);
+    setItems(nextItems);
+    persist({
+      customSpots: nextSpots,
+      roomIcons: nextIcons,
+      customRooms: nextCustomRooms,
+      hiddenRooms: nextHidden,
+      items: nextItems,
+    });
+    return true;
+  };
+
+  const deleteRoom = (room: string) => {
+    if ((roomCounts[room] ?? 0) > 0) return;
+
+    const nextSpots = { ...customSpots };
+    delete nextSpots[room];
+    const nextIcons = { ...roomIcons };
+    delete nextIcons[room];
+    const nextCustomRooms = customRooms.filter((r) => r !== room);
+    const nextHidden = DEFAULT_ROOMS[room] ? [...hiddenRooms, room] : hiddenRooms;
+
+    setCustomSpots(nextSpots);
+    setRoomIcons(nextIcons);
+    setCustomRooms(nextCustomRooms);
+    setHiddenRooms(nextHidden);
+    persist({ customSpots: nextSpots, roomIcons: nextIcons, customRooms: nextCustomRooms, hiddenRooms: nextHidden });
+  };
+
+  const setRoomIcon = (room: string, icon: string) => {
+    const nextIcons = { ...roomIcons, [room]: icon };
+    setRoomIcons(nextIcons);
+    persist({ roomIcons: nextIcons });
   };
 
   const value: ItemsStore = {
@@ -165,11 +242,15 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     roomSort,
     loading,
     spotsForRoom,
+    iconForRoom,
     addItem,
     updateItem,
     deleteItem,
     addRoom,
     addSpot,
+    renameRoom,
+    deleteRoom,
+    setRoomIcon,
     toggleTheme,
     setRoomSort,
   };

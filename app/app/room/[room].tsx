@@ -3,7 +3,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { ItemCard } from '@/components/item-card';
-import { ROOM_ICONS } from '@/constants/defaults';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useTheme } from '@/hooks/use-theme';
@@ -13,7 +12,7 @@ export default function RoomScreen() {
   const { room } = useLocalSearchParams<{ room: string }>();
   const router = useRouter();
   const t = useTheme();
-  const { sortedItems, theme } = useItemsStore();
+  const { sortedItems, iconForRoom, theme } = useItemsStore();
 
   const roomItems = sortedItems.filter((i) => i.room === room);
 
@@ -23,7 +22,7 @@ export default function RoomScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: t.ink }]}>
-            {ROOM_ICONS[room] ?? '🏠'} {room}
+            {iconForRoom(room)} {room}
           </Text>
           <Pressable
             onPress={() => router.push({ pathname: '/add', params: { room } })}
