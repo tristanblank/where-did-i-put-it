@@ -12,7 +12,8 @@ across the household.
 where-did-i-put-it/
 ├── README.md            ← you are here
 ├── docs/
-│   └── ship-plan.md     ← the phase-by-phase execution plan
+│   ├── ship-plan.md     ← the phase-by-phase execution plan
+│   └── phase-4-plan.md  ← detailed Phase 4 design: architecture, milestones, verification
 ├── design/
 │   ├── design-notes.md  ← colors, font, bento layout rules (the spec)
 │   └── prototypes/      ← working web prototypes from the design phase
@@ -23,7 +24,7 @@ where-did-i-put-it/
 │                           lives at where-did-i-put-it/app/)
 ├── backend/
 │   └── supabase/
-│       ├── schema.sql            ← Phase 4 starter schema (RLS included)
+│       ├── schema.sql            ← Phase 4 schema: tables, RLS, RPCs, triggers
 │       └── edge-functions/       ← v1.1 voice parser lives here later
 └── assets/              ← app icon, splash screen, screenshots (Phase 3/5)
 ```
@@ -32,11 +33,11 @@ where-did-i-put-it/
 
 - [x] Concept + prototypes
 - [x] Ship plan written
-- [ ] Phase 0 — accounts & setup
+- [x] Phase 0 — accounts & setup
 - [x] Phase 1 — Expo scaffold
 - [x] Phase 2 — port the bento prototype
-- [ ] Phase 3 — first TestFlight build
-- [ ] Phase 4 — Supabase backend & household sync
+- [x] Phase 3 — first TestFlight build
+- [ ] Phase 4 — Supabase backend & household sync (code complete, device verification in progress — see `docs/phase-4-plan.md`)
 - [ ] Phase 5 — store readiness
 - [ ] Phase 6 — review & launch
 - [ ] v1.1 — voice stashing & search (paid tier via RevenueCat)

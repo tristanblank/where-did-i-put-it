@@ -65,16 +65,23 @@ Ship with local-only storage. Sync comes later.
 
 This is the feature that justifies the app existing: shared household inventory.
 
-1. **Schema** (in Supabase SQL editor):
+1. [x] **Schema** (in Supabase SQL editor):
    - `households` (id, name, invite_code)
-   - `profiles` (id → auth user, household_id)
+   - `profiles` (id → auth user, household_id) + an `on_auth_user_created` trigger that creates this row automatically on signup
    - `items` (id, household_id, name, room, spot, position, container, note, updated_at)
-   - `custom_rooms` / `custom_spots` (household_id scoped)
-2. Enable **Row Level Security** on every table: users can only read/write rows matching their household_id. Test this deliberately — it's the whole security model.
-3. Add **auth**: Sign in with Apple (mandatory since you're on iOS) via `expo-apple-authentication` + Supabase auth. Email magic-link as fallback.
-4. Build the **household join flow**: create household → get invite code → wife enters code → same data.
-5. Wire items CRUD to Supabase instead of AsyncStorage. Keep AsyncStorage as an offline cache (write local, sync when online) — closets don't always have good signal.
-6. Enable **Supabase Realtime** on `items` so a move on one phone appears on the other.
+   - `custom_rooms` / `custom_spots` / `room_meta` (household_id scoped — `room_meta` covers the Phase 3 hide-room/change-icon feature, which needed its own table to sync)
+   - `create_household` / `join_household` / `rename_room` RPCs (security-definer, so multi-table operations can't half-fail)
+2. [x] Row Level Security on every table, plus explicit base-table grants and `search_path`-hardened functions (Supabase's default grants didn't apply automatically on this project — had to be stated explicitly rather than assumed).
+3. [x] **Auth**: Sign in with Apple (`expo-apple-authentication`, nonce-verified) + email magic-link (PKCE flow) via Supabase auth. Root layout gates on session + household via `Stack.Protected`.
+4. [x] **Household join flow**: create household → get invite code → wife enters code → same data. Screen: `app/app/household-setup.tsx`.
+5. [x] Items CRUD wired to Supabase with AsyncStorage as an offline cache — a dirty-key outbox queues writes made offline and pushes them when connectivity returns (`app/lib/sync/`). One-time migration (`app/lib/migrate-legacy-data.ts`) pushes existing local Phase-3 data into the household the first time it's created.
+6. [x] Supabase Realtime on `items`, `custom_rooms`, `custom_spots`, `room_meta`, with an initial fetch on join (realtime alone only streams changes from the moment of subscription, so a joining spouse needs the initial fetch to see what's already there).
+
+**Status:** All code written and typechecked, not yet verified end-to-end on a real device — that's today's remaining work. Still open:
+- [ ] Run the `replica identity full` fix for `custom_rooms`/`custom_spots` (needed for realtime delete events to carry the row's name, not just its internal id)
+- [ ] Add `items`/`custom_rooms`/`custom_spots`/`room_meta` to the `supabase_realtime` publication
+- [ ] Build and install the EAS development client (needed for Sign in with Apple's native entitlement — Expo Go can't do it), currently mid-way through Apple device registration
+- [ ] Actually run the verification checklist end-to-end (airplane-mode offline test, two-phones-same-household realtime test) — see `docs/phase-4-plan.md` for the detailed checkpoint list per milestone
 
 **Checkpoint:** You stash an item; it appears on your wife's phone within seconds. Sign-out/sign-in preserves data.
 
