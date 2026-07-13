@@ -19,6 +19,7 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 
 import { Colors, Fonts } from '@/constants/theme';
+import { AuthProvider, useAuth } from '@/lib/auth-store';
 import { ItemsProvider, useItemsStore } from '@/lib/items-store';
 
 SplashScreen.preventAutoHideAsync();
@@ -64,14 +65,17 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   return (
-    <ItemsProvider>
-      <RootLayoutNav />
-    </ItemsProvider>
+    <AuthProvider>
+      <ItemsProvider>
+        <RootLayoutNav />
+      </ItemsProvider>
+    </AuthProvider>
   );
 }
 
 function RootLayoutNav() {
   const { theme, loading } = useItemsStore();
+  const { session, householdId, initializing } = useAuth();
   const [fontsLoaded, fontError] = useFonts({
     EncodeSansSemiExpanded_400Regular,
     EncodeSansSemiExpanded_500Medium,
@@ -80,7 +84,7 @@ function RootLayoutNav() {
     EncodeSansSemiExpanded_800ExtraBold,
   });
 
-  const ready = (fontsLoaded || fontError) && !loading;
+  const ready = (fontsLoaded || fontError) && !loading && !initializing;
 
   useEffect(() => {
     if (ready) {
@@ -97,10 +101,18 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={navigationTheme}>
       <Stack screenOptions={{ contentStyle: { backgroundColor: navigationTheme.colors.background } }}>
-        <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
-        <Stack.Screen name="room/[room]" options={{ title: 'Room' }} />
-        <Stack.Screen name="add" options={{ title: 'Add Item' }} />
-        <Stack.Screen name="item/[id]" options={{ title: 'Item Detail' }} />
+        <Stack.Protected guard={!session}>
+          <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !householdId}>
+          <Stack.Screen name="household-setup" options={{ headerShown: false }} />
+        </Stack.Protected>
+        <Stack.Protected guard={!!session && !!householdId}>
+          <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
+          <Stack.Screen name="room/[room]" options={{ title: 'Room' }} />
+          <Stack.Screen name="add" options={{ title: 'Add Item' }} />
+          <Stack.Screen name="item/[id]" options={{ title: 'Item Detail' }} />
+        </Stack.Protected>
       </Stack>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
     </ThemeProvider>
