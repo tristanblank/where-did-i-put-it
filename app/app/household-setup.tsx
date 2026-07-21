@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Fonts } from '@/constants/theme';
@@ -10,7 +10,7 @@ import { useItemsStore } from '@/lib/items-store';
 import { migrateLegacyLocalData } from '@/lib/migrate-legacy-data';
 import { supabase } from '@/lib/supabase';
 
-type Mode = 'choice' | 'create' | 'join';
+type Mode = 'choice' | 'create' | 'join' | 'created';
 
 export default function HouseholdSetupScreen() {
   const t = useTheme();
@@ -19,6 +19,7 @@ export default function HouseholdSetupScreen() {
   const [mode, setMode] = useState<Mode>('choice');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -44,12 +45,35 @@ export default function HouseholdSetupScreen() {
       const migrated = await migrateLegacyLocalData(householdId, session.user.id);
       if (migrated) applyMigration(migrated);
 
-      await refreshHouseholdId();
+      // Hold off on refreshHouseholdId() here — it flips the root layout's
+      // guard straight to the home screen, which would skip past ever
+      // showing the invite code. Shown first, then handleContinue below
+      // does the actual navigation.
+      const { data: household, error: fetchError } = await supabase
+        .from('households')
+        .select('invite_code')
+        .eq('id', householdId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      setInviteCode(household.invite_code);
+      setMode('created');
     } catch {
       setError("Couldn't create the household. Please try again.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleShareCode = () => {
+    if (!inviteCode) return;
+    Share.share({
+      message: `Join our household on Stasher — enter this invite code: ${inviteCode}`,
+    });
+  };
+
+  const handleContinue = () => {
+    refreshHouseholdId();
   };
 
   const handleJoin = async () => {
@@ -162,6 +186,30 @@ export default function HouseholdSetupScreen() {
               </Pressable>
             </>
           )}
+
+          {mode === 'created' && inviteCode && (
+            <>
+              <Text style={[styles.eyebrow, { color: t.accent }]}>Household created</Text>
+              <Text style={[styles.title, { color: t.ink }]}>Share your invite code</Text>
+              <Text style={[styles.subtitle, { color: t.sub }]}>
+                Your partner enters this on their phone to join and see the same data.
+              </Text>
+
+              <View style={[baseTileStyle(t, theme), styles.codeTile]}>
+                <Text style={[styles.codeText, { color: t.ink }]}>{inviteCode}</Text>
+              </View>
+
+              <Pressable
+                onPress={handleShareCode}
+                style={[styles.primaryButton, { backgroundColor: t.accent }]}>
+                <Text style={[styles.primaryButtonText, { color: t.accentInk }]}>Share invite code</Text>
+              </Pressable>
+
+              <Pressable onPress={handleContinue} style={styles.signOutRow}>
+                <Text style={[styles.signOutText, { color: t.sub }]}>Continue to Stasher</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -208,6 +256,16 @@ const styles = StyleSheet.create({
   },
   choiceBody: {
     fontSize: 13,
+  },
+  codeTile: {
+    paddingVertical: 24,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  codeText: {
+    fontFamily: Fonts.bold,
+    fontSize: 32,
+    letterSpacing: 4,
   },
   signOutRow: {
     marginTop: 16,
