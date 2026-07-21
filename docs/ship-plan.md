@@ -77,11 +77,9 @@ This is the feature that justifies the app existing: shared household inventory.
 5. [x] Items CRUD wired to Supabase with AsyncStorage as an offline cache — a dirty-key outbox queues writes made offline and pushes them when connectivity returns (`app/lib/sync/`). One-time migration (`app/lib/migrate-legacy-data.ts`) pushes existing local Phase-3 data into the household the first time it's created.
 6. [x] Supabase Realtime on `items`, `custom_rooms`, `custom_spots`, `room_meta`, with an initial fetch on join (realtime alone only streams changes from the moment of subscription, so a joining spouse needs the initial fetch to see what's already there).
 
-**Status:** All code written and typechecked, not yet verified end-to-end on a real device — that's today's remaining work. Still open:
-- [ ] Run the `replica identity full` fix for `custom_rooms`/`custom_spots` (needed for realtime delete events to carry the row's name, not just its internal id)
-- [ ] Add `items`/`custom_rooms`/`custom_spots`/`room_meta` to the `supabase_realtime` publication
-- [ ] Build and install the EAS development client (needed for Sign in with Apple's native entitlement — Expo Go can't do it), currently mid-way through Apple device registration
-- [ ] Actually run the verification checklist end-to-end (airplane-mode offline test, two-phones-same-household realtime test) — see `docs/phase-4-plan.md` for the detailed checkpoint list per milestone
+**Status:** M0 is now confirmed live, not just written — queried the Supabase SQL editor directly and checked all six tables have RLS enabled, grants are correct (`anon` gets nothing), all 12 policies are present, triggers fire, the five security-definer functions are `search_path`-pinned, `custom_rooms`/`custom_spots` have `replica identity full`, and all four tables are already in the `supabase_realtime` publication. Also found and fixed a real gap while reviewing the join flow: `create_household` never surfaced its generated invite code back to the UI — a household could be created with no way to actually get the code to your partner. Fixed in `household-setup.tsx` (new confirmation screen with a share-sheet button, shown before navigating home). Still open:
+- [ ] Build and install the EAS development client — the phone is registered (`eas device:list` confirms it), but the build itself is paused pending confirmation with work IT that dev-mode is allowed under this phone's work-managed profile
+- [ ] Actually run the M2–M6 verification checklist end-to-end on-device (sign-in persistence, airplane-mode offline test, two-phones-same-household realtime test) — see `docs/phase-4-plan.md` for the detailed checkpoint list per milestone
 
 **Checkpoint:** You stash an item; it appears on your wife's phone within seconds. Sign-out/sign-in preserves data.
 
