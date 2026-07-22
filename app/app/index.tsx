@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { Chip } from '@/components/chip';
+import { HouseholdSheet } from '@/components/household-sheet';
 import { ItemCard } from '@/components/item-card';
 import { LabelPath } from '@/components/label-path';
 import { RoomActionsSheet } from '@/components/room-actions-sheet';
@@ -20,6 +21,7 @@ export default function HomeScreen() {
     useItemsStore();
   const [query, setQuery] = useState('');
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [householdSheetOpen, setHouseholdSheetOpen] = useState(false);
   const longPressTriggered = useRef(false);
 
   const bentoRooms = useMemo(() => {
@@ -50,9 +52,16 @@ export default function HomeScreen() {
             <Text style={[styles.eyebrow, { color: t.accent }]}>Household index</Text>
             <Text style={[styles.title, { color: t.ink }]}>Stasher</Text>
           </View>
-          <Pressable onPress={toggleTheme} style={[baseTileStyle(t, theme), styles.themeToggle]}>
-            <Text style={styles.themeToggleIcon}>{theme === 'light' ? '🌙' : '☀️'}</Text>
-          </Pressable>
+          <View style={styles.headerButtons}>
+            <Pressable
+              onPress={() => setHouseholdSheetOpen(true)}
+              style={[baseTileStyle(t, theme), styles.themeToggle]}>
+              <Text style={styles.themeToggleIcon}>👥</Text>
+            </Pressable>
+            <Pressable onPress={toggleTheme} style={[baseTileStyle(t, theme), styles.themeToggle]}>
+              <Text style={styles.themeToggleIcon}>{theme === 'light' ? '🌙' : '☀️'}</Text>
+            </Pressable>
+          </View>
         </View>
 
         <TextInput
@@ -171,6 +180,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
       <RoomActionsSheet room={activeRoom} onClose={() => setActiveRoom(null)} />
+      <HouseholdSheet visible={householdSheetOpen} onClose={() => setHouseholdSheetOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -200,6 +210,10 @@ const styles = StyleSheet.create({
     fontFamily: Fonts.bold,
     fontSize: 26,
     lineHeight: 30,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
   themeToggle: {
     borderRadius: 999,

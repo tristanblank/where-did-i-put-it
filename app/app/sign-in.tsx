@@ -31,6 +31,7 @@ export default function SignInScreen() {
     } catch (e) {
       // A cancelled system dialog isn't an error worth surfacing.
       if ((e as { code?: string }).code !== 'ERR_REQUEST_CANCELED') {
+        console.error('Apple sign-in error', JSON.stringify(e), e);
         setError('Sign in with Apple failed. Please try again.');
       }
     } finally {
