@@ -152,9 +152,33 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   // push it in the background. No household yet → nothing to push to, skip
   // entirely (pure local mode, same as Phase 3).
 
+  // Snapshots the current local value for a dirty key, so a push can tell
+  // whether the row it just sent is still what's locally current. Two
+  // different-looking edits to the same item can otherwise both stringify
+  // to distinct values while dirty is presence-only (markDirty no-ops if
+  // already dirty) — comparing before vs. after is what lets a mid-flight
+  // edit or delete survive a stale push instead of being clobbered by it.
+  const snapshotFor = (table: OutboxTable, key: string): string | null => {
+    if (table === 'items') {
+      const item = dataRef.current.items.find((i) => i.id === key);
+      return item ? JSON.stringify(item) : null;
+    }
+    if (table === 'custom_rooms') {
+      return dataRef.current.customRooms.includes(key) ? key : null;
+    }
+    if (table === 'custom_spots') {
+      const [room, name] = key.split('::');
+      return (dataRef.current.customSpots[room] ?? []).includes(name) ? key : null;
+    }
+    const icon = dataRef.current.roomIcons[key] ?? null;
+    const hidden = dataRef.current.hiddenRooms.includes(key);
+    return icon || hidden ? JSON.stringify({ icon, hidden }) : null;
+  };
+
   const flushTable = async (table: OutboxTable, hid: string) => {
     const keys = await getDirtyKeys(table);
     for (const key of keys) {
+      const before = snapshotFor(table, key);
       try {
         if (table === 'items') {
           const item = dataRef.current.items.find((i) => i.id === key);
@@ -219,7 +243,15 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
             if (error) throw error;
           }
         }
-        await clearDirty(table, key);
+        // Only clear dirty if nothing changed locally while this push was
+        // in flight. If it did, leave the key dirty — markDirty() is a
+        // no-op on an already-dirty key, so this is the only thing that
+        // keeps a newer edit (or a delete) from being silently dropped;
+        // the next flush trigger re-reads dataRef.current fresh and sends
+        // whatever's actually current.
+        if (snapshotFor(table, key) === before) {
+          await clearDirty(table, key);
+        }
       } catch (e) {
         console.error(`Sync failed for ${table}:${key}`, e);
         break; // stop draining this table; retried on the next flush trigger

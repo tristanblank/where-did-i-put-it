@@ -98,6 +98,7 @@ export default function AddItemScreen() {
                 placeholder="e.g. Passport, spare Fire Stick remote"
                 placeholderTextColor={t.sub}
                 autoFocus
+                maxLength={200}
                 style={inputStyle}
               />
             </Field>
@@ -114,6 +115,7 @@ export default function AddItemScreen() {
                   onChangeText={setNewRoomInput}
                   placeholder="Add a room…"
                   placeholderTextColor={t.sub}
+                  maxLength={100}
                   style={[styles.inlineInput, inputStyle]}
                 />
                 <Pressable onPress={handleAddRoom} style={[styles.inlineAddButton, { borderColor: t.border }]}>
@@ -135,6 +137,7 @@ export default function AddItemScreen() {
                     onChangeText={setNewSpotInput}
                     placeholder="Add furniture or a spot…"
                     placeholderTextColor={t.sub}
+                    maxLength={100}
                     style={[styles.inlineInput, inputStyle]}
                   />
                   <Pressable onPress={handleAddSpot} style={[styles.inlineAddButton, { borderColor: t.border }]}>
@@ -160,6 +163,7 @@ export default function AddItemScreen() {
                 onChangeText={setContainer}
                 placeholder='e.g. "the blue box", "shoebox marked CABLES"'
                 placeholderTextColor={t.sub}
+                maxLength={200}
                 style={inputStyle}
               />
             </Field>
@@ -170,6 +174,7 @@ export default function AddItemScreen() {
                 onChangeText={setNote}
                 placeholder="e.g. behind the winter coats"
                 placeholderTextColor={t.sub}
+                maxLength={2000}
                 style={inputStyle}
               />
             </Field>

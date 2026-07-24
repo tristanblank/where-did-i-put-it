@@ -8,7 +8,8 @@
 create table households (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 200),
-  invite_code text unique not null default substr(md5(random()::text), 1, 8),
+  invite_code text unique not null default substr(md5(random()::text), 1, 8)
+    check (char_length(invite_code) = 8),
   created_at timestamptz not null default now()
 );
 
@@ -112,7 +113,20 @@ alter table room_meta enable row level security;
 -- there's no legitimate unauthenticated data access to allow for.
 
 grant select, insert on households to authenticated;
-grant select, insert, update on profiles to authenticated;
+-- profiles.household_id is deliberately NOT client-writable: an UPDATE
+-- policy with no explicit WITH CHECK reuses its USING clause, and "own
+-- profile write" below only checks `id = auth.uid()` — that constrains
+-- which row can be touched, not what value household_id ends up with. A
+-- plain `update` grant would let any signed-in user set their own
+-- household_id to any household's uuid directly, bypassing
+-- join_household()'s invite-code check entirely. Restricting the grant to
+-- display_name closes that off without needing a WITH CHECK subquery;
+-- household_id only ever changes via the security-definer RPCs below,
+-- which run as table owner and aren't subject to this grant. No `insert`
+-- grant either — handle_new_user() is the only thing that creates a
+-- profiles row, and it's security-definer too.
+grant select on profiles to authenticated;
+grant update (display_name) on profiles to authenticated;
 grant select, insert, update, delete on items to authenticated;
 grant select, insert, update, delete on custom_rooms to authenticated;
 grant select, insert, update, delete on custom_spots to authenticated;
@@ -217,6 +231,15 @@ declare hid uuid := my_household_id();
 begin
   if hid is null then
     raise exception 'Not in a household';
+  end if;
+
+  -- Without this, a same-name call still passes every "not exists" guard
+  -- below (the row already matches p_new_name) but the unconditional
+  -- DELETE right after each guard doesn't know that, and removes the
+  -- custom_rooms/room_meta row anyway -- silently losing that room's icon
+  -- and hidden state for a rename that changed nothing.
+  if p_old_name = p_new_name then
+    return;
   end if;
 
   update items set room = p_new_name where household_id = hid and room = p_old_name;

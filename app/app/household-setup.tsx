@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Fonts } from '@/constants/theme';
@@ -34,10 +34,24 @@ export default function HouseholdSetupScreen() {
     if (!session) return;
     setError(null);
     setBusy(true);
-    try {
-      const { data: householdId, error: rpcError } = await supabase.rpc('create_household', { p_name: trimmed });
-      if (rpcError) throw rpcError;
 
+    let householdId: string;
+    try {
+      const { data, error: rpcError } = await supabase.rpc('create_household', { p_name: trimmed });
+      if (rpcError) throw rpcError;
+      householdId = data;
+    } catch {
+      setError("Couldn't create the household. Please try again.");
+      setBusy(false);
+      return;
+    }
+
+    // create_household isn't idempotent and this profile is now linked to
+    // householdId — retrying it from here would create a second, orphaned
+    // household rather than resuming this one. So any failure past this
+    // point is surfaced without offering a "try again" that re-runs
+    // create_household; the user just proceeds to home instead.
+    try {
       // One-time push of any pre-Phase-4 local data into the household
       // that was just created — never run on join, since a joining spouse
       // should see the household's existing data, not overwrite it with
@@ -58,8 +72,13 @@ export default function HouseholdSetupScreen() {
 
       setInviteCode(household.invite_code);
       setMode('created');
-    } catch {
-      setError("Couldn't create the household. Please try again.");
+    } catch (e) {
+      console.error('Post-creation step failed', e);
+      Alert.alert(
+        'Household created',
+        "Your household was created, but something didn't finish (like moving over your old items). You can keep going — check your items once you're in, and grab your invite code later from the 👥 button on the home screen."
+      );
+      await refreshHouseholdId();
     } finally {
       setBusy(false);
     }
@@ -146,6 +165,7 @@ export default function HouseholdSetupScreen() {
                 placeholder="e.g. The Blanks"
                 placeholderTextColor={t.sub}
                 autoFocus
+                maxLength={200}
                 style={inputStyle}
               />
               {error && <Text style={[styles.error, { color: t.danger }]}>{error}</Text>}

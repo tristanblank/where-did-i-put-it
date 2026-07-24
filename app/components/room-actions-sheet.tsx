@@ -118,6 +118,7 @@ export function RoomActionsSheet({ room, onClose }: RoomActionsSheetProps) {
                 setRenameError(null);
               }}
               autoFocus
+              maxLength={100}
               style={[styles.input, { borderColor: t.border, color: t.ink, backgroundColor: t.tileAlt }]}
               placeholderTextColor={t.sub}
             />
