@@ -438,8 +438,21 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       },
     });
 
+    // Realtime's websocket gets suspended when the app backgrounds (screen
+    // lock, app switch, etc.) — same underlying problem the outbox-flush
+    // effect above solves for the push side. The stream only carries
+    // changes from the moment a subscription is actively connected, so
+    // anything that happened while backgrounded needs a fresh fetch to
+    // catch up rather than relying on the socket reconnecting on its own.
+    // filterReconcilable in bootstrap() already protects this device's own
+    // unsynced dirty writes from being clobbered by a stale server row.
+    const appStateSub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') bootstrap();
+    });
+
     return () => {
       cancelled = true;
+      appStateSub.remove();
       supabase.removeChannel(channel);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

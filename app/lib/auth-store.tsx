@@ -15,6 +15,7 @@ type AuthStore = {
   initializing: boolean;
   signInWithApple: () => Promise<void>;
   signInWithEmailOtp: (email: string) => Promise<void>;
+  verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshHouseholdId: () => Promise<void>;
 };
@@ -118,6 +119,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  // Fallback for the magic-link tap: it needs the phone to reach the dev
+  // server's own LAN address for the final redirect, which flaky Wi-Fi
+  // routing can break. The same email also carries a numeric token that
+  // verifies directly against Supabase, no redirect involved.
+  const verifyEmailOtp = async (email: string, token: string) => {
+    const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
+    if (error) throw error;
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
@@ -133,6 +143,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializing,
     signInWithApple,
     signInWithEmailOtp,
+    verifyEmailOtp,
     signOut,
     refreshHouseholdId,
   };

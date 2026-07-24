@@ -12,10 +12,11 @@ import { useItemsStore } from '@/lib/items-store';
 export default function SignInScreen() {
   const t = useTheme();
   const { theme } = useItemsStore();
-  const { signInWithApple, signInWithEmailOtp } = useAuth();
+  const { signInWithApple, signInWithEmailOtp, verifyEmailOtp } = useAuth();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -57,6 +58,23 @@ export default function SignInScreen() {
     }
   };
 
+  const handleVerifyCode = async () => {
+    const trimmed = code.trim();
+    if (!trimmed) {
+      setError('Enter the code from the email');
+      return;
+    }
+    setError(null);
+    setBusy(true);
+    try {
+      await verifyEmailOtp(email.trim(), trimmed);
+    } catch {
+      setError("That code didn't work — double-check it and try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const inputStyle = [
     styles.input,
     { borderColor: t.border, backgroundColor: t.tile, color: t.ink },
@@ -93,12 +111,34 @@ export default function SignInScreen() {
           </View>
 
           {sent ? (
-            <View style={[baseTileStyle(t, theme), styles.sentTile]}>
-              <Text style={[styles.sentTitle, { color: t.ink }]}>Check your email</Text>
-              <Text style={[styles.sentBody, { color: t.sub }]}>
-                Tap the link we sent to {email.trim()} to finish signing in.
-              </Text>
-            </View>
+            <>
+              <View style={[baseTileStyle(t, theme), styles.sentTile]}>
+                <Text style={[styles.sentTitle, { color: t.ink }]}>Check your email</Text>
+                <Text style={[styles.sentBody, { color: t.sub }]}>
+                  Tap the link we sent to {email.trim()}, or enter the 8-digit code from that
+                  same email below.
+                </Text>
+              </View>
+              <TextInput
+                value={code}
+                onChangeText={(v) => {
+                  setCode(v);
+                  setError(null);
+                }}
+                placeholder="12345678"
+                placeholderTextColor={t.sub}
+                keyboardType="number-pad"
+                autoComplete="one-time-code"
+                maxLength={8}
+                style={[inputStyle, styles.codeInput]}
+              />
+              <Pressable
+                onPress={handleVerifyCode}
+                disabled={busy}
+                style={[styles.emailButton, { backgroundColor: t.accent }, busy && styles.disabled]}>
+                <Text style={[styles.emailButtonText, { color: t.accentInk }]}>Verify code</Text>
+              </Pressable>
+            </>
           ) : (
             <>
               <TextInput
@@ -182,6 +222,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: Fonts.regular,
     marginBottom: 12,
+  },
+  codeInput: {
+    marginTop: 12,
+    textAlign: 'center',
+    letterSpacing: 4,
   },
   emailButton: {
     borderRadius: 12,
