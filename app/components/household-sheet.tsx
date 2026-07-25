@@ -19,6 +19,7 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
   const [name, setName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
     if (!visible || !householdId) return;
@@ -44,6 +45,42 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
     Share.share({
       message: `Join our household on Stasher — enter this invite code: ${inviteCode}`,
     });
+  };
+
+  // An invite code is valid forever once it exists, and it travels — it
+  // gets texted, screenshotted, read aloud. Rotating is the only way to
+  // take one back. rotate_invite_code() returns the new code, so there's
+  // no follow-up read to get it on screen.
+  //
+  // Worth being precise in the confirmation about what rotation does and
+  // doesn't do: it invalidates the code, not anyone's membership. Someone
+  // who already joined stays joined — rotating is not how you remove a
+  // person, and a user who assumed otherwise would be badly surprised.
+  const handleRotate = () => {
+    Alert.alert(
+      'Generate a new code?',
+      "The current code stops working right away. Anyone already in the household stays in — but if you've shared the old code with someone who hasn't joined yet, you'll need to send them the new one.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Generate new code',
+          style: 'destructive',
+          onPress: async () => {
+            setRotating(true);
+            try {
+              const { data, error } = await supabase.rpc('rotate_invite_code');
+              if (error) throw error;
+              setInviteCode(data);
+            } catch (e) {
+              console.error('Invite code rotation failed', e);
+              Alert.alert('Something went wrong', "Couldn't generate a new code. Please try again.");
+            } finally {
+              setRotating(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   // Until this existed, the only way out of a signed-in household was
@@ -103,14 +140,22 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
         </Text>
 
         <View style={[styles.codeTile, { backgroundColor: t.tileAlt, borderColor: t.border }]}>
-          <Text style={[styles.codeText, { color: t.ink }]}>{inviteCode ?? '········'}</Text>
+          <Text style={[styles.codeText, { color: t.ink, opacity: rotating ? 0.4 : 1 }]}>
+            {inviteCode ?? '········'}
+          </Text>
         </View>
 
         <Pressable
           onPress={handleShare}
-          disabled={!inviteCode}
-          style={[styles.shareButton, { backgroundColor: t.accent }, !inviteCode && styles.disabled]}>
+          disabled={!inviteCode || rotating}
+          style={[styles.shareButton, { backgroundColor: t.accent }, (!inviteCode || rotating) && styles.disabled]}>
           <Text style={[styles.shareButtonText, { color: t.accentInk }]}>Share invite code</Text>
+        </Pressable>
+
+        <Pressable onPress={handleRotate} disabled={!inviteCode || rotating} style={styles.rotateRow}>
+          <Text style={[styles.rotateText, { color: t.sub }, (!inviteCode || rotating) && styles.disabled]}>
+            {rotating ? 'Generating…' : 'Generate a new code'}
+          </Text>
         </Pressable>
 
         <Pressable style={[styles.cancelRow, { borderColor: t.border }]} onPress={onClose}>
@@ -178,6 +223,15 @@ const styles = StyleSheet.create({
   shareButtonText: {
     fontFamily: Fonts.semiBold,
     fontSize: 16,
+  },
+  rotateRow: {
+    marginTop: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  rotateText: {
+    fontFamily: Fonts.regular,
+    fontSize: 13,
   },
   cancelRow: {
     marginTop: 8,
