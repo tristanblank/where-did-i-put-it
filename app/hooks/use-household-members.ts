@@ -55,7 +55,7 @@ export function useHouseholdMembers() {
   const nameFor = useCallback(
     (userId: string | null): string | null => {
       if (!userId) return null;
-      if (userId === session?.user.id) return 'You';
+      if (userId === session?.user.id) return 'you';
       const match = members.find((m) => m.id === userId);
       if (!match) return 'Someone who left';
       return match.displayName?.trim() || 'Unnamed member';

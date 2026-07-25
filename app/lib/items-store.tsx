@@ -578,10 +578,18 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.updatedAt - a.updatedAt), [items]);
 
   const addItem = (input: NewItemInput) => {
-    // createdBy stays null until the row round-trips: it's a server-side
-    // column default, so the authoritative value arrives with the
-    // realtime echo or the next bootstrap, not from here.
-    const newItem = { id: uid(), ...input, updatedAt: Date.now(), createdBy: null };
+    // Set locally as well as defaulted server-side, and the two agree
+    // without a round-trip: this device is the one inserting the row, so
+    // auth.uid() in the column default resolves to exactly this user.
+    //
+    // Waiting for the server's value instead doesn't work. The push
+    // marks the row dirty, and the realtime echo of our own insert is
+    // dropped by the dirty-key check below — that check is what stops a
+    // stale echo clobbering an unsent local edit, and it can't tell the
+    // difference between that and the row we're waiting on. So the value
+    // wouldn't land until the next bootstrap, and the item would sit
+    // there unattributed until the app was next foregrounded.
+    const newItem = { id: uid(), ...input, updatedAt: Date.now(), createdBy: session?.user.id ?? null };
     const next = [newItem, ...items];
     setItems(next);
     persist({ items: next });
