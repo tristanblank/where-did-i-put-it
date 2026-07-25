@@ -77,15 +77,18 @@ This is the feature that justifies the app existing: shared household inventory.
 5. [x] Items CRUD wired to Supabase with AsyncStorage as an offline cache — a dirty-key outbox queues writes made offline and pushes them when connectivity returns (`app/lib/sync/`). One-time migration (`app/lib/migrate-legacy-data.ts`) pushes existing local Phase-3 data into the household the first time it's created.
 6. [x] Supabase Realtime on `items`, `custom_rooms`, `custom_spots`, `room_meta`, with an initial fetch on join (realtime alone only streams changes from the moment of subscription, so a joining spouse needs the initial fetch to see what's already there).
 
-**Status:** M0 confirmed live via direct SQL editor checks (RLS, grants, policies, triggers, `search_path`-pinned functions, replica identity, realtime publication all verified). The EAS development client is built and installed (device registration + work-IT dev-mode approval both cleared) — Sign in with Apple works end-to-end after fixing two real bugs found along the way: `EXPO_PUBLIC_SUPABASE_URL` had a stray `/rest/v1/` suffix causing 404s on every Supabase call, and the Apple auth provider wasn't yet enabled in the Supabase dashboard. Also fixed the invite-code gap from the last update (`create_household` never surfaced its own code) and went a step further: added a household-info sheet (👥 button on the home screen) so the code is viewable again at any time, by any household member, not just at creation. On-device, confirmed:
+**Status:** All milestones confirmed live on-device — M0 through M6, done.
+- [x] **M0** — verified directly via SQL editor checks (RLS, grants, policies, triggers, `search_path`-pinned functions, replica identity, realtime publication all confirmed)
+- [x] **M2** — both auth paths confirmed, including sign-out/sign-in persistence: Sign in with Apple, and email magic-link with an added 8-digit OTP-code fallback (the link's redirect depends on reaching the dev server's own LAN address, which flaky Wi-Fi routing broke during testing — the code sidesteps that entirely)
 - [x] **M4** — airplane-mode write test: add/edit an item offline, instant local UI update, syncs to Supabase within seconds of reconnecting
 - [x] **M5** — legacy migration: pre-existing local items from the real device correctly migrated into the new household on creation, confirmed both on-screen and in the Supabase table editor
+- [x] **M6** — two-phones-same-household realtime test: stash on one phone, appears on the other in close to real time
 
-Still open:
-- [ ] Full **M2** checkpoint — Apple sign-in persistence confirmed; email magic-link path not yet tested
-- [ ] **M6** — two-phones-same-household realtime test, blocked on registering a second device (wife's phone) and rebuilding the dev client to include it; deliberately holding off on that for now
+Bugs found and fixed along the way: a stray `/rest/v1/` suffix on `EXPO_PUBLIC_SUPABASE_URL`, the Apple auth provider not yet enabled in the Supabase dashboard, `create_household` never surfacing its own invite code (now shown at creation and any time after, via a 👥 button on the home screen), and a realtime subscription that went stale after the app backgrounded — fixed with an `AppState`-triggered refetch on foreground, which is also what took M6 from "works after a relaunch" to "works in near real time."
 
-**Checkpoint:** You stash an item; it appears on your wife's phone within seconds. Sign-out/sign-in preserves data.
+Afterward, ran a 3-agent security review (Supabase/RLS, client-side sync code, config/secrets hygiene) against the whole Phase 4 codebase. Git history and `.gitignore` hygiene came back clean; what didn't: an outbox race that could silently drop a rapid second edit or delete, missing client-side input-length limits that could permanently stall the sync outbox on one oversized field, a duplicate-household risk if migration failed partway through a retry, and a real RLS gap (`profiles.household_id` had no `WITH CHECK`, letting a client bypass `join_household()`'s invite-code check entirely). All fixed and applied live.
+
+**Checkpoint:** ✅ Achieved — you stash an item, it appears on your wife's phone within seconds. Sign-out/sign-in preserves data.
 
 ---
 
