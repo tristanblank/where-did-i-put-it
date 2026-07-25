@@ -5,10 +5,16 @@
 
 -- ---------- Tables ----------
 
+-- invite_code uses pgcrypto's CSPRNG, not random(): random() is a
+-- deterministic PRNG seeded per session, which is fine for jitter and
+-- wrong for the one value whose entire job is being unguessable. 4 bytes
+-- encodes to exactly the 8 hex chars the check constraint wants. pgcrypto
+-- lives in the `extensions` schema on Supabase, so qualify it rather than
+-- depending on the inserting role's search_path.
 create table households (
   id uuid primary key default gen_random_uuid(),
   name text not null check (char_length(name) between 1 and 200),
-  invite_code text unique not null default substr(md5(random()::text), 1, 8)
+  invite_code text unique not null default encode(extensions.gen_random_bytes(4), 'hex')
     check (char_length(invite_code) = 8),
   created_at timestamptz not null default now()
 );
@@ -64,6 +70,12 @@ create table room_meta (
 
 create index items_household_idx on items (household_id, updated_at desc);
 
+-- Both of these back an FK with an ON DELETE action (set null). Without a
+-- covering index, deleting a profile or a household seq-scans the whole
+-- referencing table to find what to null out.
+create index items_created_by_idx on items (created_by);
+create index profiles_household_idx on profiles (household_id);
+
 -- custom_rooms/custom_spots key on `id` (a separate uuid) but the app
 -- identifies rows by name/room+name, not that id. Postgres's default
 -- replica identity only includes primary-key columns in a realtime DELETE
@@ -78,8 +90,12 @@ alter table custom_spots replica identity full;
 -- Server-set, not client-set: sync's last-write-wins arbitration relies on
 -- this being the server clock, not two phones' possibly-skewed clocks.
 
+-- search_path is pinned even though this function only calls now(): an
+-- unpinned path is what lets a function resolve to something an attacker
+-- planted earlier on the path. Empty is enough here -- pg_catalog is
+-- always searched implicitly, so now() still resolves.
 create or replace function set_updated_at()
-returns trigger language plpgsql as $$
+returns trigger language plpgsql set search_path = '' as $$
 begin
   new.updated_at = now();
   return new;
@@ -111,6 +127,20 @@ alter table room_meta enable row level security;
 -- it explicitly so this file is self-contained and reproducible. Nothing
 -- is granted to `anon` — every screen in this app sits behind sign-in, so
 -- there's no legitimate unauthenticated data access to allow for.
+--
+-- Revoke to zero first. Supabase's default privileges hand out ALL on new
+-- public-schema tables to anon and authenticated, and a narrower grant
+-- alongside a broader one doesn't shadow it — it just sits next to it. So
+-- without this, `anon` keeps TRUNCATE/TRIGGER/REFERENCES on every table
+-- below and `authenticated` keeps TRUNCATE/TRIGGER on top of the four
+-- verbs it's actually meant to have. PostgREST never issues any of those,
+-- so none of it is reachable over the API, but privilege nobody asked for
+-- shouldn't be sitting there waiting for the day something else can.
+revoke all on all tables in schema public from anon;
+revoke all on all tables in schema public from authenticated;
+
+-- ...and stop it recurring on whatever table gets added next.
+alter default privileges in schema public revoke all on tables from anon;
 
 grant select, insert on households to authenticated;
 -- profiles.household_id is deliberately NOT client-writable: an UPDATE
@@ -154,34 +184,59 @@ returns uuid language sql stable security definer set search_path = public as $$
   select household_id from profiles where id = auth.uid();
 $$;
 
+-- Two conventions hold for every policy below.
+--
+-- `to authenticated`: without it a policy is implicitly `to public`, and
+-- Postgres evaluates it for `anon` too. That happens to be safe here —
+-- my_household_id() returns null for anon and `x = null` is null, not
+-- true — but it makes anon's inability to read this data a property of
+-- the expression rather than of the policy, which is a thin thing to rest
+-- on. Say who the policy is for.
+--
+-- `(select auth.uid())` rather than a bare `auth.uid()`: unwrapped, it's
+-- treated as volatile-per-row and re-evaluated for every row scanned.
+-- Wrapped in a subselect it becomes an InitPlan — evaluated once per
+-- statement. Same for my_household_id(), which is STABLE and so already
+-- cached within a statement, but reads consistently this way.
+
 -- Profiles: users manage only their own row
-create policy "own profile read"  on profiles for select using (id = auth.uid());
-create policy "own profile write" on profiles for update using (id = auth.uid());
-create policy "own profile insert" on profiles for insert with check (id = auth.uid());
+create policy "own profile read"  on profiles for select
+  to authenticated using (id = (select auth.uid()));
+create policy "own profile write" on profiles for update
+  to authenticated using (id = (select auth.uid()));
+create policy "own profile insert" on profiles for insert
+  to authenticated with check (id = (select auth.uid()));
 
 -- Households: members can read their own household
 create policy "member read" on households for select
-  using (id = my_household_id());
+  to authenticated using (id = (select my_household_id()));
 create policy "authenticated create" on households for insert
-  with check (auth.uid() is not null);
+  to authenticated with check ((select auth.uid()) is not null);
 
 -- Items / rooms / spots / room prefs: household-scoped everything
-create policy "household items read"   on items for select using (household_id = my_household_id());
-create policy "household items insert" on items for insert with check (household_id = my_household_id());
-create policy "household items update" on items for update using (household_id = my_household_id());
-create policy "household items delete" on items for delete using (household_id = my_household_id());
+create policy "household items read"   on items for select
+  to authenticated using (household_id = (select my_household_id()));
+create policy "household items insert" on items for insert
+  to authenticated with check (household_id = (select my_household_id()));
+create policy "household items update" on items for update
+  to authenticated using (household_id = (select my_household_id()));
+create policy "household items delete" on items for delete
+  to authenticated using (household_id = (select my_household_id()));
 
 create policy "household rooms all" on custom_rooms for all
-  using (household_id = my_household_id())
-  with check (household_id = my_household_id());
+  to authenticated
+  using (household_id = (select my_household_id()))
+  with check (household_id = (select my_household_id()));
 
 create policy "household spots all" on custom_spots for all
-  using (household_id = my_household_id())
-  with check (household_id = my_household_id());
+  to authenticated
+  using (household_id = (select my_household_id()))
+  with check (household_id = (select my_household_id()));
 
 create policy "household room_meta all" on room_meta for all
-  using (household_id = my_household_id())
-  with check (household_id = my_household_id());
+  to authenticated
+  using (household_id = (select my_household_id()))
+  with check (household_id = (select my_household_id()));
 
 -- ---------- Realtime ----------
 -- In the dashboard: Database → Replication → enable realtime on
@@ -193,10 +248,20 @@ create policy "household room_meta all" on room_meta for all
 -- connection mid-operation can't leave things half-done. Security-definer
 -- RPCs, not broad policies.
 
+-- The re-entry guard shouldn't ever fire from the app — household-setup
+-- is only reachable while householdId is null. It's here for the direct
+-- RPC call: without it, an already-joined account calling this again
+-- silently repoints its profile at a brand-new household, orphaning the
+-- old one and every item in it with no path back. Cheap guard, a lot of
+-- unrecoverable damage on the other side of it.
 create or replace function create_household(p_name text)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare hid uuid;
 begin
+  if my_household_id() is not null then
+    raise exception 'Already in a household';
+  end if;
+
   insert into households (name) values (p_name) returning id into hid;
   update profiles set household_id = hid where id = auth.uid();
   return hid;
@@ -213,6 +278,37 @@ begin
   end if;
   update profiles set household_id = hid where id = auth.uid();
   return hid;
+end;
+$$;
+
+-- An invite code that's been shared once — texted, read aloud over the
+-- phone, left in a screenshot — is valid forever, and before this there
+-- was no way to invalidate one short of deleting the household outright.
+-- Rotating has to bypass both the missing UPDATE grant and the missing
+-- UPDATE policy on households, so: security definer, like the rest.
+-- The retry loop is for the unique-violation case; at 2^32 codes and a
+-- household count in the single digits it will effectively never go
+-- around twice, but an unhandled 23505 would surface to the user as a
+-- failed rotation for no reason worth explaining to them.
+create or replace function rotate_invite_code()
+returns text language plpgsql security definer set search_path = public as $$
+declare
+  hid uuid := my_household_id();
+  new_code text;
+begin
+  if hid is null then
+    raise exception 'Not in a household';
+  end if;
+
+  loop
+    new_code := encode(extensions.gen_random_bytes(4), 'hex');
+    begin
+      update households set invite_code = new_code where id = hid;
+      return new_code;
+    exception when unique_violation then
+      null; -- collision: go around again
+    end;
+  end loop;
 end;
 $$;
 
@@ -299,14 +395,24 @@ $$;
 -- concrete exploit: it inserts into households before ever touching
 -- auth.uid(), so an unauthenticated caller could spam junk rows into it
 -- with nothing but the public anon key.
+--
+-- The trigger functions need this too. PostgREST doesn't expose functions
+-- returning `trigger`, so neither was callable in practice — but that's a
+-- property of PostgREST's routing, not of the grant, and the grant is what
+-- the database actually enforces. Revoke both rather than relying on a
+-- layer above to keep declining to route to them.
 revoke execute on function my_household_id() from public;
 revoke execute on function create_household(text) from public;
 revoke execute on function join_household(text) from public;
+revoke execute on function rotate_invite_code() from public;
 revoke execute on function rename_room(text, text) from public;
 revoke execute on function delete_own_account() from public;
+revoke execute on function handle_new_user() from public;
+revoke execute on function set_updated_at() from public;
 
 grant execute on function my_household_id() to authenticated;
 grant execute on function create_household(text) to authenticated;
 grant execute on function join_household(text) to authenticated;
+grant execute on function rotate_invite_code() to authenticated;
 grant execute on function rename_room(text, text) to authenticated;
 grant execute on function delete_own_account() to authenticated;
