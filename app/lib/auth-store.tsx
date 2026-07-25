@@ -17,6 +17,7 @@ type AuthStore = {
   signInWithEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   refreshHouseholdId: () => Promise<void>;
 };
 
@@ -133,6 +134,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  // The client only ever holds the anon key, which can't delete an
+  // auth.users row directly -- delete_own_account() is a security-definer
+  // RPC that runs with the elevated privileges that requires. Explicit
+  // signOut afterward clears the now-dangling local session immediately,
+  // rather than waiting on it to fail naturally on its next use.
+  const deleteAccount = async () => {
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) throw error;
+    const { error: signOutError } = await supabase.auth.signOut();
+    if (signOutError) throw signOutError;
+  };
+
   const refreshHouseholdId = async () => {
     if (session) await fetchHouseholdId(session.user.id);
   };
@@ -145,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signInWithEmailOtp,
     verifyEmailOtp,
     signOut,
+    deleteAccount,
     refreshHouseholdId,
   };
 

@@ -29,7 +29,7 @@ create table items (
   pos text check (char_length(pos) <= 100),
   container text check (char_length(container) <= 200),
   note text check (char_length(note) <= 2000),
-  created_by uuid references profiles(id),
+  created_by uuid references profiles(id) on delete set null,
   updated_at timestamptz not null default now()
 );
 
@@ -255,10 +255,58 @@ begin
 end;
 $$;
 
--- Postgres grants EXECUTE on new functions to PUBLIC by default, but same
--- rule as the table grants above: state it explicitly rather than rely on
--- a default. All four require auth.uid(), so `anon` gets nothing.
+-- Apple requires in-app account deletion for any app that supports account
+-- creation (App Store Review Guideline 5.1.1(v)). The client only ever
+-- holds the anon key, which can't delete an auth.users row directly --
+-- that needs the same security-definer pattern as the RPCs above, running
+-- with the function owner's elevated privileges rather than the caller's.
+-- Deleting auth.users cascades to profiles (on delete cascade, defined
+-- above) and to Supabase's own auth-schema tables; items.created_by is
+-- on delete set null, not cascade, so a household's shared items survive
+-- one member deleting their account -- only the "who added this" link is
+-- cleared, not the item itself.
+--
+-- Nothing else cascades from profiles to households, though -- if the
+-- last member of a household deleted their account, the household and
+-- everything in it would otherwise sit forever, orphaned but never
+-- actually deleted. So: check membership count first, and if this is the
+-- last one out, delete the household too (which cascades to items/
+-- custom_rooms/custom_spots/room_meta via their own existing FKs).
+create or replace function delete_own_account()
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  hid uuid;
+  remaining_members int;
+begin
+  select household_id into hid from profiles where id = auth.uid();
+
+  if hid is not null then
+    select count(*) into remaining_members from profiles where household_id = hid and id <> auth.uid();
+    if remaining_members = 0 then
+      delete from households where id = hid;
+    end if;
+  end if;
+
+  delete from auth.users where id = auth.uid();
+end;
+$$;
+
+-- Postgres grants EXECUTE on new functions to PUBLIC by default -- and
+-- PUBLIC is a pseudo-role every role, including anon, is implicitly a
+-- member of. That default has to be explicitly revoked, not just
+-- shadowed by an authenticated-only grant alongside it, or anon can still
+-- call these directly with no session at all. create_household is the
+-- concrete exploit: it inserts into households before ever touching
+-- auth.uid(), so an unauthenticated caller could spam junk rows into it
+-- with nothing but the public anon key.
+revoke execute on function my_household_id() from public;
+revoke execute on function create_household(text) from public;
+revoke execute on function join_household(text) from public;
+revoke execute on function rename_room(text, text) from public;
+revoke execute on function delete_own_account() from public;
+
 grant execute on function my_household_id() to authenticated;
 grant execute on function create_household(text) to authenticated;
 grant execute on function join_household(text) to authenticated;
 grant execute on function rename_room(text, text) to authenticated;
+grant execute on function delete_own_account() to authenticated;

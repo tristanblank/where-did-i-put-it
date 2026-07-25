@@ -64,3 +64,12 @@ export async function hasAnyDirty(): Promise<boolean> {
   await ensureLoaded();
   return (Object.keys(state) as OutboxTable[]).some((table) => state[table].length > 0);
 }
+
+// Account deletion only -- wipes pending writes along with everything else
+// local, so a future sign-in on this device (a different account, or a
+// fresh one) doesn't try to push a dead account's queued changes.
+export async function clearOutboxState() {
+  await ensureLoaded();
+  state = empty();
+  await AsyncStorage.removeItem(OUTBOX_KEY);
+}

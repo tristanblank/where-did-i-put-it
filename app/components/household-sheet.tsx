@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-store';
 import { useTheme } from '@/hooks/use-theme';
+import { useItemsStore } from '@/lib/items-store';
 import { supabase } from '@/lib/supabase';
 
 type HouseholdSheetProps = {
@@ -13,9 +14,11 @@ type HouseholdSheetProps = {
 
 export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
   const t = useTheme();
-  const { householdId } = useAuth();
+  const { householdId, deleteAccount } = useAuth();
+  const { clearLocalData } = useItemsStore();
   const [name, setName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (!visible || !householdId) return;
@@ -43,6 +46,31 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
     });
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete your account?',
+      "This can't be undone. You'll be signed out immediately and your account permanently deleted. If anyone else is still in this household, their data stays untouched — if you're the only one, the household and everything in it goes too.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              await clearLocalData();
+            } catch (e) {
+              console.error('Account deletion failed', e);
+              Alert.alert('Something went wrong', "Couldn't delete your account. Please try again.");
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
@@ -65,6 +93,12 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
 
         <Pressable style={[styles.cancelRow, { borderColor: t.border }]} onPress={onClose}>
           <Text style={[styles.cancelText, { color: t.sub }]}>Close</Text>
+        </Pressable>
+
+        <Pressable style={styles.deleteRow} onPress={handleDeleteAccount} disabled={deleting}>
+          <Text style={[styles.deleteText, { color: t.danger }, deleting && styles.disabled]}>
+            {deleting ? 'Deleting account…' : 'Delete account'}
+          </Text>
         </Pressable>
       </View>
     </Modal>
@@ -128,5 +162,14 @@ const styles = StyleSheet.create({
   cancelText: {
     fontFamily: Fonts.semiBold,
     fontSize: 16,
+  },
+  deleteRow: {
+    marginTop: 4,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteText: {
+    fontFamily: Fonts.regular,
+    fontSize: 13,
   },
 });

@@ -109,3 +109,10 @@ export async function migrateLegacyLocalData(householdId: string, userId: string
   // preferences, not household data.
   return { items: migratedItems, customRooms, customSpots, hiddenRooms, roomIcons };
 }
+
+// Account deletion only -- lets a future sign-in on this device re-run the
+// legacy migration rather than silently no-op'ing against a flag left over
+// from the deleted account.
+export async function resetMigrationFlag() {
+  await AsyncStorage.removeItem(MIGRATION_FLAG_KEY);
+}

@@ -14,14 +14,15 @@ type Mode = 'choice' | 'create' | 'join' | 'created';
 
 export default function HouseholdSetupScreen() {
   const t = useTheme();
-  const { theme, applyMigration } = useItemsStore();
-  const { session, refreshHouseholdId, signOut } = useAuth();
+  const { theme, applyMigration, clearLocalData } = useItemsStore();
+  const { session, refreshHouseholdId, signOut, deleteAccount } = useAuth();
   const [mode, setMode] = useState<Mode>('choice');
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const inputStyle = [styles.input, { borderColor: t.border, backgroundColor: t.tile, color: t.ink }];
 
@@ -95,6 +96,31 @@ export default function HouseholdSetupScreen() {
     refreshHouseholdId();
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete your account?',
+      "This can't be undone. You'll be signed out immediately and your account permanently deleted.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete account',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteAccount();
+              await clearLocalData();
+            } catch (e) {
+              console.error('Account deletion failed', e);
+              Alert.alert('Something went wrong', "Couldn't delete your account. Please try again.");
+              setDeleting(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleJoin = async () => {
     const trimmed = code.trim();
     if (!trimmed) {
@@ -146,6 +172,12 @@ export default function HouseholdSetupScreen() {
 
               <Pressable onPress={() => signOut()} style={styles.signOutRow}>
                 <Text style={[styles.signOutText, { color: t.sub }]}>Sign out</Text>
+              </Pressable>
+
+              <Pressable onPress={handleDeleteAccount} disabled={deleting} style={styles.deleteRow}>
+                <Text style={[styles.deleteText, { color: t.danger }, deleting && styles.disabled]}>
+                  {deleting ? 'Deleting account…' : 'Delete account'}
+                </Text>
               </Pressable>
             </>
           )}
@@ -292,6 +324,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signOutText: {
+    fontSize: 13,
+    fontFamily: Fonts.regular,
+  },
+  deleteRow: {
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  deleteText: {
     fontSize: 13,
     fontFamily: Fonts.regular,
   },

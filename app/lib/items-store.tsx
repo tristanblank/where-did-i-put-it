@@ -6,8 +6,9 @@ import { Alert, AppState } from 'react-native';
 import { DEFAULT_ROOMS, ROOM_ICONS } from '@/constants/defaults';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useAuth } from '@/lib/auth-store';
+import { resetMigrationFlag } from '@/lib/migrate-legacy-data';
 import { supabase } from '@/lib/supabase';
-import { clearDirty, getDirtyKeys, markDirty, type OutboxTable } from '@/lib/sync/outbox';
+import { clearDirty, clearOutboxState, getDirtyKeys, markDirty, type OutboxTable } from '@/lib/sync/outbox';
 import { filterReconcilable } from '@/lib/sync/reconcile';
 import { subscribeToHousehold, type CustomRoomRow, type CustomSpotRow, type ItemRow, type RoomMetaRow } from '@/lib/sync/realtime';
 
@@ -70,6 +71,7 @@ type ItemsStore = {
     hiddenRooms: string[];
     roomIcons: Record<string, string>;
   }) => void;
+  clearLocalData: () => Promise<void>;
   toggleTheme: () => void;
   setRoomSort: (sort: RoomSort) => void;
 };
@@ -663,6 +665,25 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     persist(data);
   };
 
+  // Account deletion only. auth-store's session going null already hides
+  // every household screen behind the sign-in guard, but this device's
+  // AsyncStorage cache and outbox would otherwise survive that and could
+  // leak the deleted account's household data into a later sign-in on the
+  // same phone — a different account, or a fresh one after re-signup.
+  // theme/roomSort are left alone: genuine per-device preferences, not
+  // account data.
+  const clearLocalData = async () => {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    await clearOutboxState();
+    await resetMigrationFlag();
+    dataRef.current = { ...dataRef.current, items: [], customRooms: [], customSpots: {}, hiddenRooms: [], roomIcons: {} };
+    setItems([]);
+    setCustomRooms([]);
+    setCustomSpots({});
+    setHiddenRooms([]);
+    setRoomIcons({});
+  };
+
   const value: ItemsStore = {
     items,
     sortedItems,
@@ -684,6 +705,7 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     deleteRoom,
     setRoomIcon,
     applyMigration,
+    clearLocalData,
     toggleTheme,
     setRoomSort,
   };
