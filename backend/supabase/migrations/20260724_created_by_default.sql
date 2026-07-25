@@ -1,0 +1,15 @@
+-- items.created_by was dead data: the outbox upsert in items-store.tsx
+-- never sent it, so every item created through normal use had it null.
+-- Only the one-time legacy migration ever set it.
+--
+-- Fixing it client-side doesn't work cleanly. PostgREST's upsert compiles
+-- to ON CONFLICT DO UPDATE across every column in the payload, so a client
+-- that sends created_by sends it on edits too — and the second household
+-- member to touch an item would take credit for having added it.
+--
+-- A column default is the right owner for this. It applies on insert and
+-- is left alone on update, with no client-side bookkeeping about whether
+-- a given row has been synced before. The legacy migration path passes
+-- created_by explicitly and keeps working: an explicit value overrides a
+-- default.
+alter table items alter column created_by set default auth.uid();

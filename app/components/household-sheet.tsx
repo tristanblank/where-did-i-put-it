@@ -14,7 +14,7 @@ type HouseholdSheetProps = {
 
 export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
   const t = useTheme();
-  const { householdId, deleteAccount } = useAuth();
+  const { householdId, deleteAccount, signOut } = useAuth();
   const { clearLocalData } = useItemsStore();
   const [name, setName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
@@ -44,6 +44,28 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
     Share.share({
       message: `Join our household on Stasher — enter this invite code: ${inviteCode}`,
     });
+  };
+
+  // Until this existed, the only way out of a signed-in household was
+  // "Delete account" — the setup screen's sign-out is unreachable once
+  // householdId is set, since the root layout guards that route on it
+  // being null. Signing out leaves household membership intact; signing
+  // back in lands straight back on the same data.
+  const handleSignOut = () => {
+    Alert.alert('Sign out?', "Your household and everything in it stays put. You'll need to sign in again to see it.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign out',
+        onPress: async () => {
+          try {
+            await signOut();
+          } catch (e) {
+            console.error('Sign out failed', e);
+            Alert.alert('Something went wrong', "Couldn't sign you out. Please try again.");
+          }
+        },
+      },
+    ]);
   };
 
   const handleDeleteAccount = () => {
@@ -93,6 +115,10 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
 
         <Pressable style={[styles.cancelRow, { borderColor: t.border }]} onPress={onClose}>
           <Text style={[styles.cancelText, { color: t.sub }]}>Close</Text>
+        </Pressable>
+
+        <Pressable style={styles.signOutRow} onPress={handleSignOut} disabled={deleting}>
+          <Text style={[styles.signOutText, { color: t.sub }, deleting && styles.disabled]}>Sign out</Text>
         </Pressable>
 
         <Pressable style={styles.deleteRow} onPress={handleDeleteAccount} disabled={deleting}>
@@ -162,6 +188,15 @@ const styles = StyleSheet.create({
   cancelText: {
     fontFamily: Fonts.semiBold,
     fontSize: 16,
+  },
+  signOutRow: {
+    marginTop: 4,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  signOutText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 15,
   },
   deleteRow: {
     marginTop: 4,

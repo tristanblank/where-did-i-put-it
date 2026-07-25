@@ -80,11 +80,33 @@ const STORAGE_KEY = 'stasher:data';
 const uid = () => Crypto.randomUUID();
 const spotKey = (room: string, name: string) => `${room}::${name}`;
 
+// Does retrying this error stand any chance of a different outcome?
+//
+// A dropped connection, a 5xx, a timeout: yes, retry forever, that's what
+// the outbox is for. A constraint violation or a policy rejection: no —
+// the row will be refused identically every time, and since flushTable
+// stops draining a table at its first failure, one such row silently
+// wedges every later write to that table for the life of the install.
+//
+// Postgres SQLSTATE classes 22 (data exception), 23 (integrity
+// constraint) and 42 (access rule violation, which is where an RLS denial
+// lands) are the permanent ones. PostgREST's own PGRST* codes are request
+// -shaped problems and equally not worth retrying. Anything else —
+// including an error with no code at all, which is what a network throw
+// looks like — is treated as transient.
+const PERMANENT_SQLSTATE_CLASSES = ['22', '23', '42'];
+
+function isPermanentSyncError(e: unknown): boolean {
+  const code = (e as { code?: unknown })?.code;
+  if (typeof code !== 'string') return false;
+  return code.startsWith('PGRST') || PERMANENT_SQLSTATE_CLASSES.includes(code.slice(0, 2));
+}
+
 const ItemsContext = createContext<ItemsStore | null>(null);
 
 export function ItemsProvider({ children }: { children: ReactNode }) {
   const systemScheme = useColorScheme();
-  const { householdId } = useAuth();
+  const { householdId, session, initializing } = useAuth();
   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState<Item[]>([]);
   const [customRooms, setCustomRooms] = useState<string[]>([]);
@@ -111,6 +133,9 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   const writeQueueRef = useRef(Promise.resolve());
   const flushingRef = useRef(false);
   const flushAgainRef = useRef(false);
+  // Counts permanently-rejected rows across one full flush, so the user
+  // gets a single alert rather than one per wedged row.
+  const droppedRef = useRef(0);
   const householdIdRef = useRef<string | null>(householdId);
   householdIdRef.current = householdId;
 
@@ -194,6 +219,13 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
               pos: item.pos,
               container: item.container,
               note: item.note,
+              // created_by is deliberately absent: it's a column default
+              // of auth.uid() server-side. Sending it would mean sending
+              // it on edits too — PostgREST's upsert does ON CONFLICT DO
+              // UPDATE over every column in the payload — and the second
+              // member to touch an item would take credit for adding it.
+              // Omitted, the default applies on insert and the column is
+              // left alone on update, which is the behaviour we want.
             });
             if (error) throw error;
           } else {
@@ -256,7 +288,16 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         console.error(`Sync failed for ${table}:${key}`, e);
-        break; // stop draining this table; retried on the next flush trigger
+        if (!isPermanentSyncError(e)) {
+          break; // transient; stop draining this table and retry on the next trigger
+        }
+        // Permanent. Retrying can only fail the same way, and leaving it
+        // dirty would block every later write to this table behind it —
+        // so drop it from the queue. The local copy stays; it's this
+        // device's write that won't ever reach the household, which the
+        // user needs telling about rather than discovering months later.
+        await clearDirty(table, key);
+        droppedRef.current += 1;
       }
     }
   };
@@ -269,6 +310,7 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       return;
     }
     flushingRef.current = true;
+    droppedRef.current = 0;
     try {
       await flushTable('items', hid);
       await flushTable('custom_rooms', hid);
@@ -276,6 +318,13 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       await flushTable('room_meta', hid);
     } finally {
       flushingRef.current = false;
+      const dropped = droppedRef.current;
+      if (dropped > 0) {
+        Alert.alert(
+          "Some changes didn't sync",
+          `${dropped === 1 ? 'One change' : `${dropped} changes`} couldn't be saved to your household and ${dropped === 1 ? 'was' : 'were'} skipped. ${dropped === 1 ? "It's" : "They're"} still on this phone, but won't show up on other devices.`
+        );
+      }
       if (flushAgainRef.current) {
         flushAgainRef.current = false;
         flushOutbox();
@@ -683,6 +732,33 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     setHiddenRooms([]);
     setRoomIcons({});
   };
+
+  // Wipe this device's cache whenever the signed-in user goes away or
+  // changes. Sign-out used to leave everything behind, which mattered
+  // because the incoming-changes path above is purely additive — a
+  // bootstrap adds and updates rows the server has, but never removes
+  // rows it doesn't. So the next account to sign in on this phone saw the
+  // previous one's items sitting in the list, and editing one of them
+  // marked it dirty and pushed it into the *new* account's household.
+  //
+  // Only fires on non-null -> (null | different user). A null -> user
+  // transition is left alone deliberately: that's a first sign-in, and
+  // the pre-Phase-4 local data it would delete is exactly what
+  // migrateLegacyLocalData() is about to read.
+  const lastUserIdRef = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (initializing) return;
+    const currentUserId = session?.user.id ?? null;
+    const previousUserId = lastUserIdRef.current;
+    lastUserIdRef.current = currentUserId;
+
+    // First settled observation of the session — nothing to compare to.
+    if (previousUserId === undefined) return;
+    if (previousUserId === null || previousUserId === currentUserId) return;
+
+    clearLocalData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.user.id, initializing]);
 
   const value: ItemsStore = {
     items,

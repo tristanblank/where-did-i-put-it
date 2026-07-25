@@ -35,7 +35,13 @@ create table items (
   pos text check (char_length(pos) <= 100),
   container text check (char_length(container) <= 200),
   note text check (char_length(note) <= 2000),
-  created_by uuid references profiles(id) on delete set null,
+  -- Defaulted server-side rather than sent by the client. PostgREST's
+  -- upsert is ON CONFLICT DO UPDATE over every column in the payload, so
+  -- a client that sends created_by sends it on edits too, and whoever
+  -- touched the item last would take credit for adding it. A default
+  -- applies on insert and is left alone on update. The one-time legacy
+  -- migration passes it explicitly, which overrides this.
+  created_by uuid references profiles(id) on delete set null default auth.uid(),
   updated_at timestamptz not null default now()
 );
 
