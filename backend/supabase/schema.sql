@@ -16,7 +16,14 @@ create table households (
   name text not null check (char_length(name) between 1 and 200),
   invite_code text unique not null default encode(extensions.gen_random_bytes(4), 'hex')
     check (char_length(invite_code) = 8),
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  -- Stamped when the last member leaves. Not a delete: the free plan has
+  -- no automatic backups and no PITR, so cascading a household away on a
+  -- mistaken tap would be unrecoverable by anyone. The row and everything
+  -- under it stay put, invisible (no members means my_household_id() is
+  -- null for everyone, and every policy already refuses), and the invite
+  -- code still resolves — so rejoining with it is the undo.
+  abandoned_at timestamptz
 );
 
 create table profiles (
@@ -213,6 +220,25 @@ create policy "own profile write" on profiles for update
 create policy "own profile insert" on profiles for insert
   to authenticated with check (id = (select auth.uid()));
 
+-- The one policy in this file that widens rather than narrows. Without
+-- it, items.created_by is permanently unresolvable: the uuid points at a
+-- profiles row the reader isn't allowed to see, so "who added this" can
+-- never render however correctly the column is populated. What it exposes
+-- to a household member is the other members' display_name, id,
+-- household_id and created_at — email and provider live in auth.users,
+-- which no client-facing role can read at all.
+--
+-- The null case is safe by construction rather than by guard: a user with
+-- no household compares household_id = null, which is null and not true,
+-- so household-less profiles stay invisible to each other instead of
+-- pooling into one readable group.
+--
+-- No recursion, despite being a policy on profiles that calls a function
+-- reading profiles — my_household_id() is security definer, so it runs as
+-- the table owner and isn't subject to RLS itself.
+create policy "household members read" on profiles for select
+  to authenticated using (household_id = (select my_household_id()));
+
 -- Households: members can read their own household
 create policy "member read" on households for select
   to authenticated using (id = (select my_household_id()));
@@ -274,6 +300,9 @@ begin
 end;
 $$;
 
+-- Joining also un-abandons: it's the recovery path for someone who left
+-- by mistake, and the handover path for taking over a household whose
+-- last member has gone.
 create or replace function join_household(code text)
 returns uuid language plpgsql security definer set search_path = public as $$
 declare hid uuid;
@@ -282,8 +311,39 @@ begin
   if hid is null then
     raise exception 'Invalid invite code';
   end if;
+
   update profiles set household_id = hid where id = auth.uid();
+  update households set abandoned_at = null where id = hid and abandoned_at is not null;
+
   return hid;
+end;
+$$;
+
+-- Leaving clears membership and, if that was the last member, stamps the
+-- household abandoned rather than deleting it — see the abandoned_at
+-- comment on the table above for why that isn't a delete.
+--
+-- delete_own_account() below deliberately keeps its hard delete instead.
+-- That one is an explicit request to destroy an account, and whoever made
+-- it can't come back to rejoin anything, so rows left behind there would
+-- be an orphan rather than a safety net.
+create or replace function leave_household()
+returns void language plpgsql security definer set search_path = public as $$
+declare
+  hid uuid;
+  remaining int;
+begin
+  select household_id into hid from profiles where id = auth.uid();
+  if hid is null then
+    return; -- not in one; nothing to do
+  end if;
+
+  update profiles set household_id = null where id = auth.uid();
+
+  select count(*) into remaining from profiles where household_id = hid;
+  if remaining = 0 then
+    update households set abandoned_at = now() where id = hid;
+  end if;
 end;
 $$;
 
@@ -410,6 +470,7 @@ $$;
 revoke execute on function my_household_id() from public;
 revoke execute on function create_household(text) from public;
 revoke execute on function join_household(text) from public;
+revoke execute on function leave_household() from public;
 revoke execute on function rotate_invite_code() from public;
 revoke execute on function rename_room(text, text) from public;
 revoke execute on function delete_own_account() from public;
@@ -419,6 +480,7 @@ revoke execute on function set_updated_at() from public;
 grant execute on function my_household_id() to authenticated;
 grant execute on function create_household(text) to authenticated;
 grant execute on function join_household(text) to authenticated;
+grant execute on function leave_household() to authenticated;
 grant execute on function rotate_invite_code() to authenticated;
 grant execute on function rename_room(text, text) to authenticated;
 grant execute on function delete_own_account() to authenticated;

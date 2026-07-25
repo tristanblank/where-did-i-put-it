@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { LabelPath } from '@/components/label-path';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
+import { useHouseholdMembers } from '@/hooks/use-household-members';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 
@@ -13,8 +14,13 @@ export default function ItemDetailScreen() {
   const router = useRouter();
   const t = useTheme();
   const { items, deleteItem, theme } = useItemsStore();
+  const { nameFor } = useHouseholdMembers();
 
   const item = items.find((i) => i.id === id);
+  // Null for anything added before this device synced, and briefly for a
+  // just-added item whose server row hasn't echoed back yet. Both cases
+  // render nothing rather than an "Added by unknown" placeholder.
+  const addedBy = item ? nameFor(item.createdBy) : null;
 
   const handleDelete = () => {
     Alert.alert('Delete this item?', "This can't be undone.", [
@@ -43,6 +49,7 @@ export default function ItemDetailScreen() {
             {item.note ? <Text style={[styles.note, { color: t.sub }]}>{item.note}</Text> : null}
             <Text style={[styles.updatedAt, { color: t.sub }]}>
               Last updated {new Date(item.updatedAt).toLocaleString()}
+              {addedBy ? ` · Added by ${addedBy}` : ''}
             </Text>
 
             <View style={styles.actions}>

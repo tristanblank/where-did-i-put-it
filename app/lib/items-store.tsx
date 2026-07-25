@@ -21,6 +21,11 @@ export type Item = {
   container: string;
   note: string;
   updatedAt: number;
+  // Null for items added before this synced (legacy migration rows aside)
+  // and for anything created offline that hasn't round-tripped yet — the
+  // value is assigned by a column default server-side, so the client
+  // can't know it until the row comes back.
+  createdBy: string | null;
 };
 
 export type NewItemInput = {
@@ -371,6 +376,7 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       container: row.container ?? '',
       note: row.note ?? '',
       updatedAt: new Date(row.updated_at).getTime(),
+      createdBy: row.created_by,
     };
     const current = dataRef.current.items;
     const idx = current.findIndex((i) => i.id === incoming.id);
@@ -572,7 +578,10 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.updatedAt - a.updatedAt), [items]);
 
   const addItem = (input: NewItemInput) => {
-    const newItem = { id: uid(), ...input, updatedAt: Date.now() };
+    // createdBy stays null until the row round-trips: it's a server-side
+    // column default, so the authoritative value arrives with the
+    // realtime echo or the next bootstrap, not from here.
+    const newItem = { id: uid(), ...input, updatedAt: Date.now(), createdBy: null };
     const next = [newItem, ...items];
     setItems(next);
     persist({ items: next });

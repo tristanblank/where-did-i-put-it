@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-store';
+import { useHouseholdMembers } from '@/hooks/use-household-members';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 import { supabase } from '@/lib/supabase';
@@ -14,12 +15,16 @@ type HouseholdSheetProps = {
 
 export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
   const t = useTheme();
-  const { householdId, deleteAccount, signOut } = useAuth();
+  const { householdId, deleteAccount, signOut, session, refreshHouseholdId } = useAuth();
   const { clearLocalData } = useItemsStore();
+  const { members, refresh: refreshMembers } = useHouseholdMembers();
   const [name, setName] = useState<string | null>(null);
   const [inviteCode, setInviteCode] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [displayName, setDisplayName] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     if (!visible || !householdId) return;
@@ -38,7 +43,78 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
       });
   }, [visible, householdId]);
 
+  // Seed the input from whatever's already stored, each time the sheet
+  // opens — not on every members change, or a save would fight the text
+  // the user is still typing.
+  useEffect(() => {
+    if (!visible) return;
+    const mine = members.find((m) => m.id === session?.user.id);
+    setDisplayName(mine?.displayName ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, session?.user.id]);
+
   if (!visible) return null;
+
+  // display_name is the one profiles column the client can write — the
+  // column-level grant deliberately excludes household_id, so this can't
+  // be repurposed into a household switch.
+  const handleSaveName = async () => {
+    if (!session) return;
+    const trimmed = displayName.trim();
+    setSavingName(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ display_name: trimmed || null })
+        .eq('id', session.user.id);
+      if (error) throw error;
+      await refreshMembers();
+    } catch (e) {
+      console.error('Failed to save display name', e);
+      Alert.alert('Something went wrong', "Couldn't save your name. Please try again.");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  // Leaving does not delete anything. If you're the last member out, the
+  // household is stamped abandoned_at and left fully intact — the free
+  // plan has no backups and no PITR, so a destructive version of this
+  // would be unrecoverable by anyone. The invite code keeps working,
+  // which makes rejoining the undo.
+  const handleLeave = () => {
+    const isLastMember = members.length <= 1;
+    Alert.alert(
+      'Leave this household?',
+      isLastMember
+        ? "You're the only one here, so nothing will be able to see these items once you go. Nothing is deleted — keep your invite code and you can rejoin with it to get everything back."
+        : "You'll stop seeing this household's items on this phone. The others stay in, and you can rejoin later with the invite code.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            setLeaving(true);
+            try {
+              const { error } = await supabase.rpc('leave_household');
+              if (error) throw error;
+              // Drop this device's cached copy before the household guard
+              // flips, or the setup screen's legacy migration would find
+              // the old household's items sitting in AsyncStorage and
+              // push them into whatever gets created or joined next.
+              await clearLocalData();
+              await refreshHouseholdId();
+            } catch (e) {
+              console.error('Failed to leave household', e);
+              Alert.alert('Something went wrong', "Couldn't leave the household. Please try again.");
+              setLeaving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const handleShare = () => {
     if (!inviteCode) return;
@@ -158,12 +234,53 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
           </Text>
         </Pressable>
 
+        <View style={[styles.section, { borderColor: t.border }]}>
+          <Text style={[styles.sectionLabel, { color: t.sub }]}>YOUR NAME</Text>
+          <View style={styles.nameRow}>
+            <TextInput
+              value={displayName}
+              onChangeText={setDisplayName}
+              onBlur={handleSaveName}
+              onSubmitEditing={handleSaveName}
+              placeholder="Add a name or nickname"
+              placeholderTextColor={t.sub}
+              maxLength={200}
+              returnKeyType="done"
+              style={[styles.nameInput, { borderColor: t.border, backgroundColor: t.tileAlt, color: t.ink }]}
+            />
+            {savingName ? <Text style={[styles.savingText, { color: t.sub }]}>Saving…</Text> : null}
+          </View>
+          <Text style={[styles.sectionHint, { color: t.sub }]}>
+            This is what the rest of your household sees next to items you add.
+          </Text>
+        </View>
+
+        {members.length > 1 ? (
+          <View style={[styles.section, { borderColor: t.border }]}>
+            <Text style={[styles.sectionLabel, { color: t.sub }]}>
+              {members.length} PEOPLE IN THIS HOUSEHOLD
+            </Text>
+            {members.map((m) => (
+              <Text key={m.id} style={[styles.memberRow, { color: t.ink }]}>
+                {m.displayName?.trim() || 'Unnamed member'}
+                {m.id === session?.user.id ? ' (you)' : ''}
+              </Text>
+            ))}
+          </View>
+        ) : null}
+
         <Pressable style={[styles.cancelRow, { borderColor: t.border }]} onPress={onClose}>
           <Text style={[styles.cancelText, { color: t.sub }]}>Close</Text>
         </Pressable>
 
         <Pressable style={styles.signOutRow} onPress={handleSignOut} disabled={deleting}>
           <Text style={[styles.signOutText, { color: t.sub }, deleting && styles.disabled]}>Sign out</Text>
+        </Pressable>
+
+        <Pressable style={styles.signOutRow} onPress={handleLeave} disabled={deleting || leaving}>
+          <Text style={[styles.signOutText, { color: t.sub }, (deleting || leaving) && styles.disabled]}>
+            {leaving ? 'Leaving…' : 'Leave household'}
+          </Text>
         </Pressable>
 
         <Pressable style={styles.deleteRow} onPress={handleDeleteAccount} disabled={deleting}>
@@ -232,6 +349,44 @@ const styles = StyleSheet.create({
   rotateText: {
     fontFamily: Fonts.regular,
     fontSize: 13,
+  },
+  section: {
+    marginTop: 20,
+    paddingTop: 16,
+    borderTopWidth: 1,
+  },
+  sectionLabel: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 11,
+    letterSpacing: 1.1,
+    marginBottom: 8,
+  },
+  sectionHint: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  nameInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+    fontFamily: Fonts.regular,
+  },
+  savingText: {
+    fontSize: 12,
+  },
+  memberRow: {
+    fontFamily: Fonts.regular,
+    fontSize: 15,
+    paddingVertical: 4,
   },
   cancelRow: {
     marginTop: 8,

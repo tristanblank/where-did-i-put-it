@@ -48,7 +48,14 @@ export async function migrateLegacyLocalData(householdId: string, userId: string
   // for both the Supabase rows and the local cache going forward, so the
   // two stay keyed identically from this point on.
   const legacyItems = legacy.items ?? [];
-  const migratedItems: Item[] = legacyItems.map((item) => ({ ...item, id: Crypto.randomUUID() }));
+  // createdBy is set explicitly rather than left to spread from the
+  // legacy row, which predates the field entirely and would otherwise
+  // leave it undefined in the local cache while the server row has it.
+  const migratedItems: Item[] = legacyItems.map((item) => ({
+    ...item,
+    id: Crypto.randomUUID(),
+    createdBy: userId,
+  }));
 
   if (migratedItems.length > 0) {
     const rows = migratedItems.map((item) => ({

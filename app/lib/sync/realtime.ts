@@ -11,6 +11,7 @@ export type ItemRow = {
   pos: string | null;
   container: string | null;
   note: string | null;
+  created_by: string | null;
   updated_at: string;
 };
 
