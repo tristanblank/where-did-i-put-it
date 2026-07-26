@@ -442,6 +442,35 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     persist({ roomIcons: nextIcons, hiddenRooms: nextHidden });
   };
 
+  // Removes local rows the server no longer has.
+  //
+  // Realtime only delivers events while the socket is actually connected,
+  // and a backgrounded phone isn't connected — so any delete that happens
+  // in that window is simply never seen. bootstrap() re-fetches on
+  // foreground to catch up, but applying rows only ever adds and updates:
+  // a row that's gone from the server produces no event to apply, so
+  // without this the local copy keeps it forever. That's not a
+  // theoretical gap; deleting rows straight from the database left them
+  // sitting on a phone that had been backgrounded at the time.
+  //
+  // Dirty keys are skipped: a row created offline and not yet pushed is
+  // legitimately absent from the server, and pruning it would delete the
+  // user's own unsynced work. Callers must only invoke this with the rows
+  // from a *successful* fetch — an errored request yields no data, and
+  // treating that as "the server has nothing" would wipe the cache.
+  const pruneMissing = async (
+    table: OutboxTable,
+    serverKeys: string[],
+    localKeys: string[],
+    remove: (key: string) => void
+  ) => {
+    const present = new Set(serverKeys);
+    const dirty = new Set(await getDirtyKeys(table));
+    for (const key of localKeys) {
+      if (!present.has(key) && !dirty.has(key)) remove(key);
+    }
+  };
+
   useEffect(() => {
     if (!householdId) return;
     let cancelled = false;
@@ -462,18 +491,50 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       if (itemsRes.data) {
         const rows = await filterReconcilable('items', itemsRes.data, (r) => r.id);
         rows.forEach(applyItemRow);
+        await pruneMissing(
+          'items',
+          itemsRes.data.map((r) => r.id),
+          dataRef.current.items.map((i) => i.id),
+          removeItemRow
+        );
       }
       if (roomsRes.data) {
         const rows = await filterReconcilable('custom_rooms', roomsRes.data, (r) => r.name);
         rows.forEach((r) => applyCustomRoomRow(r.name));
+        await pruneMissing(
+          'custom_rooms',
+          roomsRes.data.map((r) => r.name),
+          [...dataRef.current.customRooms],
+          removeCustomRoomRow
+        );
       }
       if (spotsRes.data) {
         const rows = await filterReconcilable('custom_spots', spotsRes.data, (r) => spotKey(r.room, r.name));
         rows.forEach((r) => applyCustomSpotRow(r.room, r.name));
+        await pruneMissing(
+          'custom_spots',
+          spotsRes.data.map((r) => spotKey(r.room, r.name)),
+          Object.entries(dataRef.current.customSpots).flatMap(([room, names]) =>
+            names.map((name) => spotKey(room, name))
+          ),
+          (key) => {
+            const [room, name] = key.split('::');
+            removeCustomSpotRow(room, name);
+          }
+        );
       }
       if (metaRes.data) {
         const rows = await filterReconcilable('room_meta', metaRes.data, (r) => r.room);
         rows.forEach((r) => applyRoomMetaRow(r.room, r.icon, r.hidden));
+        // A room_meta row exists locally when the room has a custom icon
+        // or is hidden — either one is enough, so the local key set is the
+        // union rather than one list or the other.
+        await pruneMissing(
+          'room_meta',
+          metaRes.data.map((r) => r.room),
+          Array.from(new Set([...Object.keys(dataRef.current.roomIcons), ...dataRef.current.hiddenRooms])),
+          removeRoomMetaRow
+        );
       }
     };
     bootstrap();
