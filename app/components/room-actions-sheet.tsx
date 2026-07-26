@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ICON_CHOICES } from '@/constants/defaults';
 import { Fonts } from '@/constants/theme';
@@ -80,8 +80,16 @@ export function RoomActionsSheet({ room, onClose }: RoomActionsSheetProps) {
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose} />
-      <View style={[styles.sheet, { backgroundColor: t.tile, borderColor: t.border }]}>
+      {/* The rename field autoFocuses, so the keyboard is already up by
+          the time this sheet finishes animating in. Without this the
+          sheet stays pinned to the bottom of the screen and the input —
+          and the Save button under it — sit behind the keyboard, with no
+          way to scroll them into view. */}
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={styles.backdrop} onPress={onClose} />
+        <View style={[styles.sheet, { backgroundColor: t.tile, borderColor: t.border }]}>
         {mode === 'menu' && (
           <>
             <View style={styles.header}>
@@ -149,12 +157,16 @@ export function RoomActionsSheet({ room, onClose }: RoomActionsSheetProps) {
             </View>
           </>
         )}
-      </View>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',

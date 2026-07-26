@@ -743,6 +743,25 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       supabase.rpc('rename_room', { p_old_name: oldName, p_new_name: n }).then(({ error }) => {
         if (error) warnRenameFailed(error);
       }, warnRenameFailed);
+
+      // rename_room() only *renames rows that exist*, and for a built-in
+      // room none do — "Living room" has no custom_rooms row to rename
+      // and no room_meta row to carry a hidden flag. Those two rows are
+      // invented locally by the block above, so unless they're pushed the
+      // server ends up with items sitting in a room it has no record of,
+      // and every other device shows an orphaned room it can't display.
+      //
+      // Marking them dirty rather than adding another RPC reuses the
+      // outbox's existing create-or-delete logic: each key is pushed as an
+      // upsert or a delete depending on whether it's present in local
+      // state, which is already exactly right for both directions of a
+      // rename (default -> custom, custom -> default, custom -> custom).
+      // Safe in either order against the RPC above — whichever lands
+      // second sees the other's result and still converges.
+      markDirtyAndFlush('custom_rooms', oldName);
+      markDirtyAndFlush('custom_rooms', n);
+      markDirtyAndFlush('room_meta', oldName);
+      markDirtyAndFlush('room_meta', n);
     }
     return true;
   };
