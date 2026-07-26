@@ -118,6 +118,18 @@ async function main() {
 
   fs.mkdirSync(outDir, { recursive: true });
 
+  // Clear previous output first. Names are derived from the input files,
+  // so renaming a source between runs (1-home.png after home.png) leaves
+  // the old result sitting there looking exactly as legitimate as the new
+  // one — and the failure mode is uploading a duplicate set to the App
+  // Store. This directory is entirely derived; nothing here is worth
+  // keeping.
+  const stale = fs.readdirSync(outDir).filter((f) => IMAGE_EXT.has(path.extname(f).toLowerCase()));
+  for (const f of stale) fs.unlinkSync(path.join(outDir, f));
+  if (stale.length > 0) {
+    console.log(`  (cleared ${stale.length} file${stale.length === 1 ? '' : 's'} from a previous run)`);
+  }
+
   console.log(`\n${preset.label} — ${preset.width}x${preset.height}`);
   console.log(`${inDir}\n  ->  ${outDir}\n`);
 
