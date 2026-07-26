@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "screenshots": "node scripts/store-screenshots.js"
   },
   "dependencies": {
     "@expo-google-fonts/encode-sans-semi-expanded": "^0.4.1",
@@ -49,6 +50,7 @@
     "@types/react": "~19.1.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "sharp": "^0.35.3",
     "typescript": "~5.9.2"
   },
   "private": true,

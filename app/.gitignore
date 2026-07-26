@@ -33,6 +33,10 @@ yarn-error.*
 # local env files
 .env*.local
 
+# App Store screenshots — real household data, and a raw grab of the
+# household sheet contains a live invite code. Not for a public repo.
+store-assets/
+
 # typescript
 *.tsbuildinfo
 
