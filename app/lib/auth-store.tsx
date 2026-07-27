@@ -1,6 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
+import { Alert } from 'react-native';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
@@ -99,14 +100,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Magic-link callback handling. supabase-js defaults to the PKCE flow, so
-  // the link carries `?code=...` rather than a `#access_token=` fragment —
-  // handled here, not as a dedicated route, since there's nothing to render.
+  // Magic-link callback handling. The client is explicitly configured for
+  // PKCE (see supabase.ts), so the link carries `?code=...` rather than a
+  // `#access_token=` fragment — handled here, not as a dedicated route,
+  // since there's nothing to render.
+  //
+  // A failure here used to be console-only, which made it invisible: the
+  // link would consume its one-time token server-side, the exchange would
+  // fail, and the user would be dropped back on the sign-in screen to
+  // find the 6-digit code from the same email now rejected too. If the
+  // exchange fails there is no recovering that token, so say so and tell
+  // them what actually works.
   useEffect(() => {
     const handleUrl = (url: string) => {
       const code = extractCode(url);
       if (code) {
-        supabase.auth.exchangeCodeForSession(code).catch((e) => console.error('Magic link exchange failed', e));
+        supabase.auth.exchangeCodeForSession(code).catch((e) => {
+          console.error('Magic link exchange failed', e);
+          Alert.alert(
+            "That link didn't work",
+            'Request a new sign-in email and enter the 6-digit code from it instead.'
+          );
+        });
       }
     };
 

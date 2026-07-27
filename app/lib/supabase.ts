@@ -22,6 +22,15 @@ export const supabase = createClient(url, anonKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: false,
+    // supabase-js defaults to the implicit flow, which returns the session
+    // in a URL *fragment* (#access_token=...). auth-store's deep-link
+    // handler reads `?code=`, so under the default the emailed link
+    // arrived, matched nothing, and was silently discarded — while having
+    // already consumed the one-time token server-side, which then made the
+    // 6-digit code fail too. PKCE is the right flow for a native app
+    // regardless: the token comes back as a code exchanged against a
+    // locally-held verifier, rather than riding in a URL.
+    flowType: 'pkce',
   },
 });
 
