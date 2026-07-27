@@ -1,7 +1,7 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
@@ -13,6 +13,12 @@ type AuthStore = {
   // layout doesn't flash the sign-in screen before we know if there's
   // already a persisted session.
   initializing: boolean;
+  // False from the moment a *new* user signs in until their household has
+  // actually been looked up. Without it the root layout sees a session
+  // with a still-null householdId and briefly routes to household setup —
+  // so signing in flashes "Create a household" at someone who already has
+  // one, which reads like their data is gone.
+  householdResolved: boolean;
   signInWithApple: () => Promise<void>;
   signInWithEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
@@ -35,14 +41,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [householdId, setHouseholdId] = useState<string | null>(null);
   const [initializing, setInitializing] = useState(true);
+  const [householdResolved, setHouseholdResolved] = useState(false);
+  // Which user the current householdId belongs to. onAuthStateChange also
+  // fires on every token refresh, and re-fetching (or worse, blanking the
+  // routing state) on those would put a flash back in for no reason —
+  // nothing about the household changed.
+  const lastUserIdRef = useRef<string | null>(null);
 
   const fetchHouseholdId = async (userId: string) => {
     const { data, error } = await supabase.from('profiles').select('household_id').eq('id', userId).maybeSingle();
     if (error) {
+      // Still mark it resolved: routing has to proceed on *something*, and
+      // leaving it false strands the user on a screen with no way out.
       console.error('Failed to fetch household id', error);
+      setHouseholdResolved(true);
       return;
     }
     setHouseholdId(data?.household_id ?? null);
+    setHouseholdResolved(true);
   };
 
   useEffect(() => {
@@ -51,16 +67,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(async ({ data }) => {
       if (!mounted) return;
       setSession(data.session);
+      lastUserIdRef.current = data.session?.user.id ?? null;
       if (data.session) await fetchHouseholdId(data.session.user.id);
+      else setHouseholdResolved(true);
       setInitializing(false);
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, next) => {
       setSession(next);
-      if (next) {
-        fetchHouseholdId(next.user.id);
+      const nextUserId = next?.user.id ?? null;
+      const changed = nextUserId !== lastUserIdRef.current;
+      lastUserIdRef.current = nextUserId;
+
+      // Only a genuine change of user needs a lookup. Token refreshes fire
+      // here too with the same user, and reacting to those would blank the
+      // routing state mid-session.
+      if (!changed) return;
+
+      if (nextUserId) {
+        setHouseholdResolved(false);
+        fetchHouseholdId(nextUserId);
       } else {
         setHouseholdId(null);
+        setHouseholdResolved(true);
       }
     });
 
@@ -154,6 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     session,
     householdId,
     initializing,
+    householdResolved,
     signInWithApple,
     signInWithEmailOtp,
     verifyEmailOtp,

@@ -75,7 +75,7 @@ export default function RootLayout() {
 
 function RootLayoutNav() {
   const { theme, loading } = useItemsStore();
-  const { session, householdId, initializing } = useAuth();
+  const { session, householdId, initializing, householdResolved } = useAuth();
   const [fontsLoaded, fontError] = useFonts({
     EncodeSansSemiExpanded_400Regular,
     EncodeSansSemiExpanded_500Medium,
@@ -101,13 +101,20 @@ function RootLayoutNav() {
   return (
     <ThemeProvider value={navigationTheme}>
       <Stack screenOptions={{ contentStyle: { backgroundColor: navigationTheme.colors.background } }}>
-        <Stack.Protected guard={!session}>
+        {/* While a just-signed-in user's household is still being looked
+            up, stay on sign-in rather than routing anywhere. Falling
+            through to household-setup — which is what `!householdId`
+            alone does, since it's null until the fetch lands — flashes
+            "Create a household" at someone who already has one. Holding
+            the sign-in screen for those few hundred milliseconds reads as
+            the sign-in still finishing, which is exactly what it is. */}
+        <Stack.Protected guard={!session || !householdResolved}>
           <Stack.Screen name="sign-in" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={!!session && !householdId}>
+        <Stack.Protected guard={!!session && householdResolved && !householdId}>
           <Stack.Screen name="household-setup" options={{ headerShown: false }} />
         </Stack.Protected>
-        <Stack.Protected guard={!!session && !!householdId}>
+        <Stack.Protected guard={!!session && householdResolved && !!householdId}>
           <Stack.Screen name="index" options={{ headerShown: false, title: 'Home' }} />
           <Stack.Screen name="room/[room]" options={{ title: 'Room' }} />
           <Stack.Screen name="add" options={{ title: 'Add Item' }} />
