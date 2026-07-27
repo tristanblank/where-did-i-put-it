@@ -674,12 +674,22 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
   const addRoom = (name: string) => {
     const r = name.trim();
     if (!r || allRooms.includes(r)) return;
-    const nextRooms = [...customRooms, r];
+    // Adding back a room whose name matches a built-in is an unhide, not
+    // a new custom room. allRooms concatenates the defaults with the
+    // custom list, so putting it in both would render two tiles with the
+    // same name — reachable by deleting a default room and typing its
+    // name again, which is a perfectly ordinary thing to do.
+    const nextRooms = DEFAULT_ROOMS[r] ? customRooms : [...customRooms, r];
     const nextHidden = hiddenRooms.filter((h) => h !== r);
     setCustomRooms(nextRooms);
     setHiddenRooms(nextHidden);
     persist({ customRooms: nextRooms, hiddenRooms: nextHidden });
     markDirtyAndFlush('custom_rooms', r);
+    // The unhide lives in room_meta, and deleting a default room is how
+    // it got hidden in the first place. Without pushing this the server
+    // keeps hidden=true, and the next bootstrap hides the room the user
+    // just re-added right back out from under them.
+    markDirtyAndFlush('room_meta', r);
   };
 
   const addSpot = (room: string, name: string) => {
@@ -762,6 +772,16 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
       markDirtyAndFlush('custom_rooms', n);
       markDirtyAndFlush('room_meta', oldName);
       markDirtyAndFlush('room_meta', n);
+
+      // Spots have the same problem one level down. The RPC moves
+      // existing custom_spots rows across, but a default room's spots are
+      // client-side constants with no rows at all — the block above copies
+      // them into customSpots under the new name, and without pushing them
+      // the new room would come back spotless on the next bootstrap.
+      // Old-room keys are marked too so their rows are cleaned up; a
+      // delete of something the RPC already renamed is a harmless no-op.
+      spotsForRoom(oldName).forEach((s) => markDirtyAndFlush('custom_spots', spotKey(n, s)));
+      (customSpots[oldName] ?? []).forEach((s) => markDirtyAndFlush('custom_spots', spotKey(oldName, s)));
     }
     return true;
   };
