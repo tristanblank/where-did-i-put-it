@@ -129,6 +129,45 @@ The feature that turns the app from a form into something you talk to: "I put th
 - **Ads: skip them.** At hobby-app scale, ad revenue is pennies a month, they'd wreck the clean bento UI, and an app whose pitch is "your household's trusted memory" shouldn't be showing banner ads next to where you keep your passport. Ads also add SDK bloat and privacy-label complications with Apple.
 - Implementation: Apple in-app purchase via `expo-in-app-purchases` or RevenueCat (RevenueCat's free tier is the usual choice — it handles receipt validation so you don't have to).
 
+## Known design debt — rooms
+
+**Do this refactor before ever changing `DEFAULT_ROOMS`.** Not "sometime";
+that specific change is what turns it from untidiness into lost data.
+
+Today a room "exists" according to three separate sources: the
+`DEFAULT_ROOMS` constant in the app, the `custom_rooms` table, and the
+`hidden` flag in `room_meta`. Meanwhile `items.room` is free text the
+server never validates. So a row can point at a room that renders
+nowhere.
+
+That produced three separate bugs in one evening, all the same shape: a
+built-in room has no `custom_rooms` row to rename and no `room_meta` row
+to hide, so `rename_room()` had nothing to act on and the client's
+local-only invention was pruned back off on the next bootstrap. Renaming
+a default lost the room, then its spots; deleting and re-adding one lost
+the unhide and produced duplicate tiles. All fixed by pushing the
+invented rows explicitly — patches on instances, not on the cause.
+
+The hazard that remains is versioning. Rename or remove a default in a
+future release and every existing household's items in that room are
+orphaned at once, by an app update, with no user action to blame.
+`allRooms` now includes any room an item references, so that degrades to
+"an unexpected room appears" rather than "my things are gone" — but
+that's a safety net, not a fix.
+
+**The fix:** seed the eight defaults into `custom_rooms` (rename it
+`rooms`) when a household is created. Rooms become ordinary rows — rename
+is an UPDATE, delete is a DELETE, `hidden` disappears entirely,
+`room_meta` collapses to an icon column, and `DEFAULT_ROOMS` survives only
+as the seed list, so changing it affects new households and never touches
+existing ones. Needs a data migration for households created before it.
+
+Deliberately not done before launch: schema churn plus a data migration
+during store submission is exactly the sprawl the rule at the bottom of
+this file warns about.
+
+---
+
 ## Deferred to v1.2+ (deliberately out of scope)
 
 - Photo attachments per item (adds Supabase Storage + camera permissions — meaningful scope)

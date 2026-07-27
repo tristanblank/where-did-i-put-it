@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+import { AddRoomSheet } from '@/components/add-room-sheet';
 import { Chip } from '@/components/chip';
 import { HouseholdSheet } from '@/components/household-sheet';
 import { ItemCard } from '@/components/item-card';
@@ -22,6 +23,7 @@ export default function HomeScreen() {
   const [query, setQuery] = useState('');
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [householdSheetOpen, setHouseholdSheetOpen] = useState(false);
+  const [addRoomOpen, setAddRoomOpen] = useState(false);
   const longPressTriggered = useRef(false);
 
   const bentoRooms = useMemo(() => {
@@ -147,6 +149,20 @@ export default function HomeScreen() {
                 </Pressable>
               ))}
 
+              {/* Sits after the rooms rather than beside "Stash something",
+                  so the grid still leads with the two things done most
+                  often and this reads as the end of the room list. */}
+              <Pressable
+                onPress={() => setAddRoomOpen(true)}
+                style={[baseTileStyle(t, theme), styles.smallRoomTile]}>
+                <View>
+                  <Text style={{ fontSize: 22 }}>➕</Text>
+                  <View style={styles.roomNameGroup}>
+                    <Text style={[styles.roomName, { color: t.sub }]}>Add a room</Text>
+                  </View>
+                </View>
+              </Pressable>
+
               {sortedItems.length > 0 && (
                 <View style={[baseTileStyle(t, theme), styles.recentTile]}>
                   <Text style={[styles.recentLabel, { color: t.sub }]}>Recently stashed</Text>
@@ -181,6 +197,7 @@ export default function HomeScreen() {
       </ScrollView>
       <RoomActionsSheet room={activeRoom} onClose={() => setActiveRoom(null)} />
       <HouseholdSheet visible={householdSheetOpen} onClose={() => setHouseholdSheetOpen(false)} />
+      <AddRoomSheet visible={addRoomOpen} onClose={() => setAddRoomOpen(false)} />
     </SafeAreaView>
   );
 }

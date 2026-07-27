@@ -619,15 +619,7 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     persist({ roomSort: sort });
   };
 
-  const allRooms = useMemo(
-    () => [...Object.keys(DEFAULT_ROOMS), ...customRooms].filter((r) => !hiddenRooms.includes(r)),
-    [customRooms, hiddenRooms]
-  );
-
-  const spotsForRoom = (room: string) => [...(DEFAULT_ROOMS[room] ?? []), ...(customSpots[room] ?? [])];
-
-  const iconForRoom = (room: string) => roomIcons[room] ?? ROOM_ICONS[room] ?? '🏠';
-
+  // Declared above allRooms, which now depends on it.
   const roomCounts = useMemo(() => {
     const c: Record<string, number> = {};
     items.forEach((i) => {
@@ -635,6 +627,34 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
     });
     return c;
   }, [items]);
+
+  // Known rooms, plus a safety net: any room an item actually points at,
+  // even if nothing says that room exists.
+  //
+  // A room "existing" is otherwise decided by three separate things — the
+  // DEFAULT_ROOMS constant, the custom_rooms table, and room_meta.hidden —
+  // while items.room is free text the server never validates. So a row can
+  // reference a room that renders nowhere, and the home screen derives its
+  // tiles from this list, which means those items vanish from the app
+  // while sitting perfectly intact in the database.
+  //
+  // That's not hypothetical; renaming a built-in room did exactly this.
+  // Those paths are fixed, but the same shape reappears the moment
+  // DEFAULT_ROOMS itself changes: rename or drop a default in a later
+  // version and every household's items in it are suddenly orphaned, with
+  // no user action to blame. Including item-referenced rooms unconditionally
+  // makes that degrade into "an unexpected room appears" instead of
+  // "my things are gone" — the difference between a cosmetic bug and a
+  // support email about lost data.
+  const allRooms = useMemo(() => {
+    const known = [...Object.keys(DEFAULT_ROOMS), ...customRooms].filter((r) => !hiddenRooms.includes(r));
+    const referenced = Object.keys(roomCounts);
+    return Array.from(new Set([...known, ...referenced]));
+  }, [customRooms, hiddenRooms, roomCounts]);
+
+  const spotsForRoom = (room: string) => [...(DEFAULT_ROOMS[room] ?? []), ...(customSpots[room] ?? [])];
+
+  const iconForRoom = (room: string) => roomIcons[room] ?? ROOM_ICONS[room] ?? '🏠';
 
   const sortedItems = useMemo(() => [...items].sort((a, b) => b.updatedAt - a.updatedAt), [items]);
 
