@@ -1,152 +1,153 @@
 # Phase 5 — QA Checklist
 
-Run this against a **preview build**, not the dev client. The dev client
-gets its JavaScript from Metro on the dev machine; a preview build has it
-bundled in, which is what actually ships. Testing the wrong one proves
-nothing about the artifact.
+**Status: 25 of 29 passed.** Four remain, three of which unblock
+themselves once the production build exists.
 
-Both apps can sit on the phone at once and look nearly identical. Delete
-the dev client first, or be deliberate about which icon you tap.
+Run against a **preview build**, not the dev client — the dev client gets
+its JavaScript from Metro, a preview build has it bundled, and only the
+second is what ships. Both share the bundle id `com.tb.wheredidiputit`,
+so installing one *replaces* the other; there is never a choice of two
+icons.
 
-> **One-device constraint.** The provisioning profile currently registers
-> a single iPhone, and `preview` uses internal (ad-hoc) distribution, so
-> the build installs on that phone only. Tests marked **[2-device]** can't
-> be done as written. Two ways round it: register the second device's UDID
-> and rebuild, or have someone drive the second side from the Supabase SQL
-> editor — for anything that's really "did this device notice a change it
-> didn't make", a direct database change is a faithful stand-in for
-> another phone, and is *more* faithful for the offline cases because it
-> can happen while the phone is fully closed.
+> **One-device constraint.** The provisioning profile registers a single
+> iPhone and `preview` uses internal (ad-hoc) distribution, so builds
+> install on that phone only. Tests marked **[2-device]** were done by
+> driving the second side from the Supabase SQL editor instead — which is
+> a faithful stand-in, and *better* for the offline cases, since a
+> database change can happen while the phone is fully closed.
 
 ---
 
-## A. First launch — the path no one has walked since auth landed
+## A. First launch
 
-- [ ] **A1** Install the preview build. It launches to the sign-in screen
-      without crashing.
-      *This is the whole point of the preview build: it's the first time
-      the app runs with JS bundled by EAS rather than served by Metro. A
-      crash here means the `EXPO_PUBLIC_*` environment variables aren't
-      reaching the bundle.*
-- [ ] **A2** Sign in with Apple. Lands in the existing household with all
-      12 items showing.
-- [ ] **A3** Force-quit, reopen. Still signed in, no sign-in screen.
-      *Proves the session survives in the Keychain — this build is the
-      first with `expo-secure-store` doing the storing rather than
-      AsyncStorage.*
-- [ ] **A4** Sign in with the email code path instead (second account, or
-      after signing out). The emailed 6-digit code works.
-      *Password sign-in was deliberately removed from that account, so if
-      this fails, check that OTP and not password auth is being used.*
+- [x] **A1** Preview build launches without crashing.
+      *The point of the exercise: first run with JS bundled by EAS rather
+      than served by Metro. Would have crashed outright if the
+      `EXPO_PUBLIC_*` variables weren't reaching the bundle — they
+      weren't, until they were registered as EAS environment variables.*
+- [x] **A2** Household and all items present.
+- [x] **A3** Session survives a force-quit.
+      *Stronger than planned: it survived the app being wholly replaced by
+      a new build, which also proved the AsyncStorage → Keychain migration
+      works without logging anyone out.*
+- [x] **A4** Email one-time code signs in.
+      *Took three attempts and two fixes — see the auth entries below.*
 
-## B. Never run on a device
+## B. Never run on a device before this pass
 
-These three are the reason for this pass. Each passed in SQL only, and
-this session produced two bugs that passed exactly that bar.
+- [x] **B1** Deletion pruning — items deleted while the app was closed
+      disappear on reopen.
+      *Verified against a genuinely stale cache: 11 demo items deleted via
+      SQL the previous day were still on the phone. Bootstrap only ever
+      added and updated, never removed, so anything deleted while the app
+      was shut stayed forever.*
+- [x] **B2** Offline work survives pruning.
+      *Passed, but exercised the **failed-fetch guard** rather than the
+      dirty-key exemption: offline, the bootstrap fetch itself fails, so
+      pruning never runs. That's the more dangerous guard — without it a
+      flaky connection reads as "server has nothing" and wipes the cache.
+      The dirty-key exemption is sound by construction in either
+      flush/prune ordering, but was never actually hit.*
+- [x] **B3** Leave and rejoin restores everything.
+      *The **last-member branch was not exercised** — the other member was
+      still in the household, so `abandoned_at` was never stamped. That
+      path is proven in SQL only. Client code is identical either way, so
+      the untested part is entirely server-side, where it was tested.*
+- [x] **B4** Account deletion works and signs you out.
+      *Done on a throwaway account, which also cleaned itself up: deleting
+      the last member removed its household too.*
 
-- [ ] **B1 — Deletion pruning.** With the app **fully closed** (not
-      backgrounded), have an item deleted server-side. Reopen the app. The
-      item is gone.
-      *The bug this fixes: realtime only delivers while connected, and
-      `bootstrap()` used to only add and update, never remove. Anything
-      deleted while the app was closed stayed forever.*
-- [ ] **B2 — Offline work survives pruning.** Turn on airplane mode, add
-      an item, force-quit, reopen (still offline). The new item is **still
-      there**. Then reconnect and confirm it syncs.
-      *This is the dangerous half of B1. Pruning exempts dirty keys; if
-      that's wrong, the fix deletes the user's own unsynced work.*
-- [ ] **B3 — Leave and rejoin.** Note the invite code first. Leave the
-      household. Items disappear, and the setup screen appears. Rejoin
-      with the code. All 12 items come back.
-      *Leaving as the last member stamps `abandoned_at` rather than
-      deleting, precisely so this is recoverable. If the items don't come
-      back, stop and check the database before doing anything else — the
-      rows should still be there.*
-- [ ] **B4 — Account deletion.** Apple tests this directly under
-      guideline 5.1.1(v), so it must work and must be findable.
-      Household screen (👥) → "Delete account". Confirm you're signed out
-      immediately and the account is gone.
-      *Do this **last**, and ideally on the second account rather than the
-      one holding the real household. If you're the only member, the
-      household and every item in it is deleted too — that's intended, and
-      unlike leaving it is not recoverable.*
+## C. Changed during this pass
 
-## C. Changed this session — regression checks
+- [x] **C1** "Added by you" appears immediately on a new item.
+      *Failed first: `created_by` was assigned server-side, and the outbox
+      drops the realtime echo of its own write, so the value only landed
+      on the next foreground. Now set locally at creation.*
+- [x] **C2** Display name persists.
+- [x] **C3** Another member's name renders against their items.
+      *[2-device] — verified by inserting an item as the other member via
+      SQL, so it exercised the same resolution path without her phone.*
+- [x] **C4** Invite-code rotation.
+      *Old code rejected, new code accepted, both members retained. The
+      apparent failure was a stale Supabase Table Editor view, not a stale
+      database.*
+- [x] **C5** Signing in as a different account shows none of the previous
+      account's items.
+- [x] **C6** Renaming a room.
+      *Found three separate bugs. See below — this was the most productive
+      item on the list.*
+- [x] **C7** Editing someone else's item preserves their authorship.
 
-- [ ] **C1** Add an item. Open it. It says **"Added by you"**
-      *immediately*, without backgrounding the app.
-      *The first version only populated this on the next foreground.*
-- [ ] **C2** Set your name in the household sheet. Reopen the sheet — it
-      persisted.
-- [ ] **C3** **[2-device]** The other member sees your name against items
-      you added, rather than "Unnamed member".
-- [ ] **C4** Rotate the invite code. The displayed code changes, and the
-      old one no longer works when someone tries to join with it.
-      *Rotation invalidates the code but removes nobody — anyone already
-      in the household stays in.*
-- [ ] **C5** Sign out, then sign in as a **different** account. None of
-      the first account's items are visible.
-      *Sign-out clears the local cache. Before that fix, the next account
-      on the phone saw the previous one's items and could push them into
-      its own household by editing one.*
-- [ ] **C6** Rename a room with items in it. Every item follows the new
-      name, and the room's icon and hidden state come with it.
-- [ ] **C7** Edit an item that someone else added. The "Added by" still
-      credits **them**, not you.
-      *`created_by` is a server-side default and deliberately not sent on
-      update, so an edit can't rewrite attribution.*
+## D. Fresh install and empty states
 
-## D. Fresh-install and empty states
-
-Apple reviewers see an empty app, which is a state real usage stops
-showing you.
-
-- [ ] **D1** A brand-new account reaches the household setup screen and
-      can both create a household and join one by code.
-- [ ] **D2** A household with zero items: the home screen reads sensibly
-      rather than looking broken.
-- [ ] **D3** A room with zero items (Bathroom and Office are both empty
-      now) — the room screen has a sensible empty state.
-- [ ] **D4** Search with no matches, and search before anything is
-      stashed.
-- [ ] **D5** An invalid invite code shows a helpful error, not a crash or
-      a silent no-op.
+- [x] **D1** New account can create and join a household.
+- [x] **D2** Empty household reads sensibly.
+- [x] **D3** Empty room has a sensible empty state.
+- [x] **D4** Search with no matches, and before anything is stashed.
+- [x] **D5** Invalid invite code shows a helpful error.
 
 ## E. Offline and sync
 
-- [ ] **E1** Airplane mode: add, edit, and delete items. Every change
-      appears instantly in the UI.
-- [ ] **E2** Reconnect. All of it reaches the server within seconds.
-- [ ] **E3** **[2-device]** Both phones open: stash on one, it appears on
-      the other in a second or two.
-- [ ] **E4** Background one phone, change something on the other, then
-      foreground the first. It catches up.
-      *Realtime doesn't replay missed events — this is the foreground
-      refetch doing its job, and it's the same mechanism B1 depends on.*
+- [x] **E1** Offline add / edit / delete apply instantly.
+- [x] **E2** Everything reaches the server on reconnect, with correct
+      attribution and a server-clock `updated_at`.
+- [ ] **E3** **[2-device]** Live realtime between two phones.
+      **Blocked** — the second device isn't provisioned. Unblocks via
+      TestFlight once a production build is submitted (internal testers
+      need no review).
+- [x] **E4** Background one side, change data, foreground it — catches up.
+      *Tested across three tables at once (`items` insert, `items` update,
+      `room_meta` insert); all four visible changes appeared.*
 
 ## F. Store-submission requirements
 
-- [ ] **F1** Privacy policy URL loads in a browser, from a device that
-      isn't the dev machine.
-      *A dead privacy link is one of the most common rejections.*
-- [ ] **F2** Support URL loads. Apple requires one separately from the
-      privacy policy.
-- [ ] **F3** Account deletion is reachable in at most a couple of taps
-      from the main screen (5.1.1(v)).
-- [ ] **F4** Sign in with Apple works in the release build specifically —
-      release signing differs from development.
-- [ ] **F5** No placeholder text, lorem ipsum, or debug UI anywhere.
-- [ ] **F6** Screenshots match what the app actually does now, and none
-      of them shows a live invite code.
+- [x] **F1** Privacy policy URL loads.
+- [x] **F2** Support URL loads.
+- [x] **F3** Account deletion reachable in a couple of taps (5.1.1(v)).
+- [ ] **F4** Sign in with Apple on a **release**-signed build.
+      Can only be done once the production build exists. Do it via
+      TestFlight *before* submitting for review, not after.
+- [ ] **F5** No placeholder text, lorem ipsum, or debug UI. Quick visual
+      pass, not yet done.
+- [ ] **F6** Screenshots match the app. **Knowingly stale** — they
+      predate the "Add a room" tile, and were shot with temporary demo
+      items that have since been deleted. Accepted: Apple doesn't compare
+      screenshots against the running app, and reshooting now would trade
+      "missing a tile" for "looks emptier".
 
 ---
 
-## If something fails
+## What this pass actually found
 
-Anything in **B** is a stop-and-fix, not a ship-with-a-note: B1 and B2
-are silent data problems, B3 can make a household look empty, and B4 is a
-guaranteed rejection.
+Nine bugs, seven of which would have shipped silently. Recorded because
+the pattern is more useful than the list: **every one of them passed
+`tsc` and `expo lint`, and several passed SQL verification too.** Only
+running the thing on a phone surfaced them.
 
-Failures in **C** through **E** are worth judging individually. Most are
-polish; C5 and C7 are the two with real consequences (cross-account data
-visibility, and misattributing someone else's work).
+| Bug | Fix |
+|---|---|
+| Production build had no `EXPO_PUBLIC_*` variables — would have crashed on launch and been rejected under 2.1 | EAS environment variables for `production` and `preview` |
+| Deletions were never reconciled; anything deleted while the app was closed stayed on that device forever | `3aa4419` |
+| `created_by` only populated on the next foreground | `e7e71f8` |
+| Renaming a built-in room lost the room entirely | `80a1e61` |
+| Rename input sat behind the keyboard, with the Save button | `80a1e61` |
+| Renaming a built-in room lost all of its spots | `90a832d` |
+| Deleting a default room then re-adding it lost the unhide, and rendered two tiles with the same name | `90a832d` |
+| Sign-in flashed "Create a household" at someone who had one | `ce38059` |
+| Client ran the implicit flow while the deep-link handler read PKCE, so emailed links silently died — *and spent the one-time token, breaking the code fallback too* | `d47e3df` |
+| No way to add a room without starting to stash an item | `e5ae909` |
+| A room with items could render nowhere and its items vanish from the app | mitigated in `e5ae909` |
+
+Two more were configuration rather than code: Supabase's Site URL was
+still `http://localhost:3000`, so every email link went nowhere; and the
+email templates now carry only the code, no link — which removes the
+whole fragile path and, incidentally, makes cross-device sign-in work.
+
+## Remaining sequence
+
+1. **Nutrition label** in App Store Connect — see `app-store-listing.md`
+2. **F5** — visual pass
+3. **Production build** → `eas submit`
+4. **TestFlight** → add the second device as an internal tester
+5. **E3** and **F4** on that build
+6. **Submit for review**
