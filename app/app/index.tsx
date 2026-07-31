@@ -165,7 +165,11 @@ export default function HomeScreen() {
 
               {sortedItems.length > 0 && (
                 <View style={[baseTileStyle(t, theme), styles.recentTile]}>
-                  <Text style={[styles.recentLabel, { color: t.sub }]}>Recently stashed</Text>
+                  {/* Sorted by updated_at, not created — so an item that
+                      someone moved surfaces here too, which is the more
+                      useful signal in a shared household and worth naming
+                      honestly. */}
+                  <Text style={[styles.recentLabel, { color: t.sub }]}>Recent updates</Text>
                   <View style={styles.recentList}>
                     {sortedItems.slice(0, 3).map((item) => (
                       <Pressable
