@@ -72,14 +72,14 @@ This is the feature that justifies the app existing: shared household inventory.
    - `custom_rooms` / `custom_spots` / `room_meta` (household_id scoped — `room_meta` covers the Phase 3 hide-room/change-icon feature, which needed its own table to sync)
    - `create_household` / `join_household` / `rename_room` RPCs (security-definer, so multi-table operations can't half-fail)
 2. [x] Row Level Security on every table, plus explicit base-table grants and `search_path`-hardened functions (Supabase's default grants didn't apply automatically on this project — had to be stated explicitly rather than assumed).
-3. [x] **Auth**: Sign in with Apple (`expo-apple-authentication`, nonce-verified) + email magic-link (PKCE flow) via Supabase auth. Root layout gates on session + household via `Stack.Protected`.
+3. [x] **Auth**: Sign in with Apple (`expo-apple-authentication`, nonce-verified) + email one-time code (PKCE flow) via Supabase auth. Root layout gates on session + household via `Stack.Protected`. Both email templates send a code and no link — see `backend/supabase/auth-config.md` for why, and for the dashboard settings this repo can't reproduce.
 4. [x] **Household join flow**: create household → get invite code → wife enters code → same data. Screen: `app/app/household-setup.tsx`.
 5. [x] Items CRUD wired to Supabase with AsyncStorage as an offline cache — a dirty-key outbox queues writes made offline and pushes them when connectivity returns (`app/lib/sync/`). One-time migration (`app/lib/migrate-legacy-data.ts`) pushes existing local Phase-3 data into the household the first time it's created.
 6. [x] Supabase Realtime on `items`, `custom_rooms`, `custom_spots`, `room_meta`, with an initial fetch on join (realtime alone only streams changes from the moment of subscription, so a joining spouse needs the initial fetch to see what's already there).
 
 **Status:** All milestones confirmed live on-device — M0 through M6, done.
 - [x] **M0** — verified directly via SQL editor checks (RLS, grants, policies, triggers, `search_path`-pinned functions, replica identity, realtime publication all confirmed)
-- [x] **M2** — both auth paths confirmed, including sign-out/sign-in persistence: Sign in with Apple, and email magic-link with an added 8-digit OTP-code fallback (the link's redirect depends on reaching the dev server's own LAN address, which flaky Wi-Fi routing broke during testing — the code sidesteps that entirely)
+- [x] **M2** — both auth paths confirmed, including sign-out/sign-in persistence: Sign in with Apple, and email one-time code. (The magic link was the original design and is gone: it was fragile on mobile, and because a link and its code are the same one-time token, a link that failed to complete silently spent the code too. Phase 5 replaced it entirely.)
 - [x] **M4** — airplane-mode write test: add/edit an item offline, instant local UI update, syncs to Supabase within seconds of reconnecting
 - [x] **M5** — legacy migration: pre-existing local items from the real device correctly migrated into the new household on creation, confirmed both on-screen and in the Supabase table editor
 - [x] **M6** — two-phones-same-household realtime test: stash on one phone, appears on the other in close to real time

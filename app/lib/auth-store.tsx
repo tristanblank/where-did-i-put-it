@@ -100,17 +100,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Magic-link callback handling. The client is explicitly configured for
-  // PKCE (see supabase.ts), so the link carries `?code=...` rather than a
-  // `#access_token=` fragment — handled here, not as a dedicated route,
-  // since there's nothing to render.
+  // Deep-link callback handling. Currently dormant by configuration:
+  // both email templates send a code and no link, so nothing arrives here
+  // in normal use. Kept because it's the difference between a link
+  // working and a link silently eating its own one-time token — if a
+  // template is ever changed back, or a future flow (password recovery,
+  // email change) sends one, this is what makes it land.
   //
-  // A failure here used to be console-only, which made it invisible: the
-  // link would consume its one-time token server-side, the exchange would
-  // fail, and the user would be dropped back on the sign-in screen to
-  // find the 6-digit code from the same email now rejected too. If the
-  // exchange fails there is no recovering that token, so say so and tell
-  // them what actually works.
+  // The client is explicitly configured for PKCE (see supabase.ts), so a
+  // link carries `?code=...` rather than a `#access_token=` fragment.
+  // Handled here rather than as a route, since there's nothing to render.
+  //
+  // A failure used to be console-only, which made it invisible: the link
+  // consumed its token server-side, the exchange failed, and the user was
+  // dropped back on the sign-in screen to find the code from that same
+  // email now rejected too. The token is unrecoverable at that point, so
+  // say so and point at what will actually work.
   useEffect(() => {
     const handleUrl = (url: string) => {
       const code = extractCode(url);
@@ -164,10 +169,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
-  // Fallback for the magic-link tap: it needs the phone to reach the dev
-  // server's own LAN address for the final redirect, which flaky Wi-Fi
-  // routing can break. The same email also carries a numeric token that
-  // verifies directly against Supabase, no redirect involved.
+  // The primary email path, not a fallback — both email templates are
+  // configured to send only an 8-digit code, no link. Magic links on
+  // mobile are structurally fragile: the mail client may open its own
+  // browser, the deep link may not fire, and under PKCE a link opened on
+  // a different device than requested it cannot work at all, because the
+  // verifier is local to the requesting device. A typed code has none of
+  // those failure modes and works cross-device.
+  //
+  // `type: 'email'` covers both templates — verified against a signup
+  // confirmation token, not just a returning-user one.
   const verifyEmailOtp = async (email: string, token: string) => {
     const { error } = await supabase.auth.verifyOtp({ email, token, type: 'email' });
     if (error) throw error;
