@@ -551,40 +551,74 @@ export function ItemsProvider({ children }: { children: ReactNode }) {
           if (!dirty.includes(payload.new.id)) applyItemRow(payload.new);
         }
       },
+      // These three tables are keyed by a *value that can change* — the
+      // room's name — so an UPDATE can move a row from one local key to
+      // another. rename_room() does precisely that. Applying only
+      // payload.new adds the new key and leaves the old one behind, which
+      // is why a rename showed up on the other phone as an extra room
+      // rather than a renamed one. (It came right on next launch, because
+      // bootstrap's prune drops the stale key — the fix here is so it
+      // doesn't need to wait for that.)
+      //
+      // The old tuple is available: custom_rooms and custom_spots are
+      // REPLICA IDENTITY FULL, and room_meta's changing column is part of
+      // its primary key, which Postgres includes on UPDATE when it
+      // changes. items needs none of this — an id never changes.
       onCustomRooms: async (payload) => {
+        const dirty = await getDirtyKeys('custom_rooms');
         if (payload.eventType === 'DELETE') {
           const name = payload.old.name;
           if (!name) return;
-          const dirty = await getDirtyKeys('custom_rooms');
           if (!dirty.includes(name)) removeCustomRoomRow(name);
-        } else {
-          const dirty = await getDirtyKeys('custom_rooms');
-          if (!dirty.includes(payload.new.name)) applyCustomRoomRow(payload.new.name);
+          return;
         }
+        if (payload.eventType === 'UPDATE') {
+          const previous = payload.old.name;
+          if (previous && previous !== payload.new.name && !dirty.includes(previous)) {
+            removeCustomRoomRow(previous);
+          }
+        }
+        if (!dirty.includes(payload.new.name)) applyCustomRoomRow(payload.new.name);
       },
       onCustomSpots: async (payload) => {
+        const dirty = await getDirtyKeys('custom_spots');
         if (payload.eventType === 'DELETE') {
           const { room, name } = payload.old;
           if (!room || !name) return;
-          const dirty = await getDirtyKeys('custom_spots');
           if (!dirty.includes(spotKey(room, name))) removeCustomSpotRow(room, name);
-        } else {
-          const { room, name } = payload.new;
-          const dirty = await getDirtyKeys('custom_spots');
-          if (!dirty.includes(spotKey(room, name))) applyCustomSpotRow(room, name);
+          return;
         }
+        // Renaming a room rewrites custom_spots.room, so the whole
+        // room::name key moves even though the spot itself is unchanged.
+        if (payload.eventType === 'UPDATE') {
+          const prevRoom = payload.old.room;
+          const prevName = payload.old.name;
+          if (prevRoom && prevName) {
+            const prevKey = spotKey(prevRoom, prevName);
+            if (prevKey !== spotKey(payload.new.room, payload.new.name) && !dirty.includes(prevKey)) {
+              removeCustomSpotRow(prevRoom, prevName);
+            }
+          }
+        }
+        const { room, name } = payload.new;
+        if (!dirty.includes(spotKey(room, name))) applyCustomSpotRow(room, name);
       },
       onRoomMeta: async (payload) => {
+        const dirty = await getDirtyKeys('room_meta');
         if (payload.eventType === 'DELETE') {
           const room = payload.old.room;
           if (!room) return;
-          const dirty = await getDirtyKeys('room_meta');
           if (!dirty.includes(room)) removeRoomMetaRow(room);
-        } else {
-          const { room, icon, hidden } = payload.new;
-          const dirty = await getDirtyKeys('room_meta');
-          if (!dirty.includes(room)) applyRoomMetaRow(room, icon, hidden);
+          return;
         }
+        if (payload.eventType === 'UPDATE') {
+          const previous = payload.old.room;
+          if (previous && previous !== payload.new.room && !dirty.includes(previous)) {
+            removeRoomMetaRow(previous);
+          }
+        }
+        const { room, icon, hidden } = payload.new;
+        if (!dirty.includes(room)) applyRoomMetaRow(room, icon, hidden);
       },
     });
 

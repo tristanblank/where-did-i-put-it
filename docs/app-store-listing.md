@@ -12,10 +12,10 @@ does cross-check them.
 | Field | Value |
 |---|---|
 | **App name** (30 chars) | `Stasher - Home Inventory` |
-| **Subtitle** (30 chars) | `Remember where you put it` |
+| **Subtitle** (30 chars) | `Stash Your Stuff` |
 | **Primary category** | Productivity |
 | **Secondary category** | Lifestyle |
-| **Age rating** | 4+ |
+| **Age rating** | 10+ |
 | **Price** | Free |
 | **Bundle ID** | `com.tb.wheredidiputit` |
 
@@ -44,7 +44,7 @@ The winter coats. The passport. The spare key to the shed. The good
 scissors that vanish the moment anyone needs them.
 
 Stasher is a shared memory for your household. Write down where something
-lives, and it stays written down — for you, and for everyone else in the
+is stashed, and it stays written down — for you, and for everyone else in the
 house.
 
 HOW IT WORKS

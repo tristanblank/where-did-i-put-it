@@ -40,7 +40,7 @@ export default function SignInScreen() {
     }
   };
 
-  const handleEmailLink = async () => {
+  const handleEmailCode = async () => {
     const trimmed = email.trim();
     if (!trimmed) {
       setError('Enter your email address');
@@ -52,7 +52,7 @@ export default function SignInScreen() {
       await signInWithEmailOtp(trimmed);
       setSent(true);
     } catch {
-      setError("Couldn't send the link. Check the address and try again.");
+      setError("Couldn't send the code. Check the address and try again.");
     } finally {
       setBusy(false);
     }
@@ -115,8 +115,7 @@ export default function SignInScreen() {
               <View style={[baseTileStyle(t, theme), styles.sentTile]}>
                 <Text style={[styles.sentTitle, { color: t.ink }]}>Check your email</Text>
                 <Text style={[styles.sentBody, { color: t.sub }]}>
-                  Tap the link we sent to {email.trim()}, or enter the 8-digit code from that
-                  same email below.
+                  Enter the code we sent to {email.trim()}.
                 </Text>
               </View>
               <TextInput
@@ -152,10 +151,10 @@ export default function SignInScreen() {
                 style={inputStyle}
               />
               <Pressable
-                onPress={handleEmailLink}
+                onPress={handleEmailCode}
                 disabled={busy}
                 style={[styles.emailButton, { backgroundColor: t.accent }, busy && styles.disabled]}>
-                <Text style={[styles.emailButtonText, { color: t.accentInk }]}>Email me a sign-in link</Text>
+                <Text style={[styles.emailButtonText, { color: t.accentInk }]}>Email me a sign-in code</Text>
               </Pressable>
             </>
           )}

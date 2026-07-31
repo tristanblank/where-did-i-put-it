@@ -119,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Magic link exchange failed', e);
           Alert.alert(
             "That link didn't work",
-            'Request a new sign-in email and enter the 6-digit code from it instead.'
+            'Request a new sign-in email and enter the code from it instead.'
           );
         });
       }
