@@ -94,13 +94,19 @@ Afterward, ran a 3-agent security review (Supabase/RLS, client-side sync code, c
 
 ## Phase 5 — Store Readiness (1 weekend)
 
-1. Write a **privacy policy** (required). Simple template: what you collect (email, item data), where it lives (Supabase), no selling of data. Host it anywhere public — even a GitHub Pages page.
-2. Fill in App Store Connect: description, keywords, category (Productivity or Lifestyle), the **privacy nutrition label** (declare: email address, user content).
-3. Take **screenshots** on the required device sizes (6.7" and 6.5" iPhone; Expo/simulator screenshots are fine).
-4. Final QA pass: fresh-install flow, empty states, deleting your account (Apple requires an in-app account deletion option if you have accounts — don't skip this, it's a common rejection).
-5. Bump to a release build, `eas submit`, and **submit for review**.
+1. [x] Write a **privacy policy** (required). Written against the actual schema rather than a template — `docs/privacy-policy.md`, served by GitHub Pages, plus a support page since Support URL is a separate required field.
+2. [x] Fill in App Store Connect: description, keywords, category, the **privacy nutrition label** (Email Address, Name, Other User Content, User ID — all App Functionality, all Linked, no tracking). Copy and every field's location recorded in `docs/app-store-listing.md`.
+3. [x] **Screenshots** at 6.9", 6.7" and 6.5". Shot on a physical phone — there's no iOS Simulator on Windows — and resized by `app/scripts/store-screenshots.js`.
+4. [x] Final QA pass — `docs/phase-5-qa-checklist.md`. 25 of 29, the rest either blocked on a second provisioned device or knowingly accepted.
+5. [x] Production build, `eas submit`, **submitted for review**.
 
-**Checkpoint:** Status shows "Waiting for Review."
+**Checkpoint:** ✅ Submitted 31 July 2026, build 4 from commit `0a65f26`, manual release selected.
+
+**Status:** The QA pass found eleven bugs, seven of which would have shipped silently — every one passed `tsc` and `expo lint`, and several passed SQL verification too. Only running the app on a phone surfaced them; the single most valuable find (a rename appearing as a duplicate room on the second device) came from ten minutes of real two-person use.
+
+Also fixed here: the production build had no `EXPO_PUBLIC_*` environment variables registered with EAS, which would have crashed it on launch and earned a 2.1 rejection. Preview and production bundle their JS on EAS servers, where `.env.local` doesn't exist.
+
+Two things shipped knowingly: a create-then-rename race that briefly shows a duplicate room on a second device (cosmetic, self-healing, server converges correctly — see the rooms debt above), and screenshots that predate the "Add a room" tile.
 
 ---
 
