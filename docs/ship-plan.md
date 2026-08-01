@@ -155,6 +155,17 @@ orphaned at once, by an app update, with no user action to blame.
 "an unexpected room appears" rather than "my things are gone" — but
 that's a safety net, not a fix.
 
+One more symptom, found in Phase 5 testing: creating a room and renaming
+it within a second or two makes a *second* device briefly show both
+names. `addRoom` goes through the outbox but `renameRoom` calls the RPC
+immediately, so a fast rename can fire while the create is still in
+flight — the RPC finds no row to rename, and the outbox then reconciles
+with a delete plus an insert, which the receiving device sees as separate
+events. The server converges correctly and the duplicate clears on the
+next foreground, so it is cosmetic and self-healing; it was left alone
+rather than reworking the flush/dirty-key interaction on submission day.
+The refactor below removes it for free, since rename stops being an RPC.
+
 **The fix:** seed the eight defaults into `custom_rooms` (rename it
 `rooms`) when a household is created. Rooms become ordinary rows — rename
 is an UPDATE, delete is a DELETE, `hidden` disappears entirely,
