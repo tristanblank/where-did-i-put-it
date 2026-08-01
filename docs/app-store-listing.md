@@ -162,18 +162,43 @@ change to the other.
 
 ---
 
-## Review notes (optional field, worth filling in)
+## Review notes
+
+Version page → **App Review Information** → **Notes**.
 
 ```
-Sign in with Apple, or with an email one-time code — no password.
+No demo account is needed. Sign in with Apple using any Apple ID, or
+choose the email option and we'll send an 8-digit code to any address
+you enter. There is no password.
 
-Household sharing works by invite code: create a household, then share
-the code from the 👥 button on the home screen. A second account entering
-that code sees the same items.
+To see household sharing, the app's main feature: after signing in,
+create a household. The 👥 button on the home screen shows an invite
+code. A second account entering that code on the "Join with a code"
+screen sees the same items, syncing live between both.
 
-Account deletion is in the app: 👥 button on the home screen -> "Delete
-account".
+Account deletion is in the app: 👥 button on the home screen →
+"Delete account".
 ```
 
-Giving the reviewer the invite-code flow up front saves a round trip —
-the sharing feature is otherwise hard to exercise with a single account.
+Two reasons this field isn't optional in practice.
+
+**The sign-in wall.** That same section has a "Sign-in required" checkbox
+with username and password fields. This app has no passwords, so there is
+nothing to put in them — leave the box unchecked and say so in the Notes.
+A reviewer who hits a sign-in screen with no credentials and no
+explanation rejects under 2.1, and that is a wasted review cycle over a
+paragraph.
+
+**The feature is invisible to one account.** Household sharing is the
+reason the app exists, and a single reviewer with a single account will
+never stumble into it. Spelling out the invite-code flow is the
+difference between it being evaluated and being missed.
+
+## Version release
+
+Version page → **Version Release** (last section, below Build) →
+**"Manually release this version"**.
+
+The default is automatic, so this has to be changed deliberately.
+Manual keeps approval and launch as separate events, so the app goes live
+when you decide rather than the moment a reviewer clicks approve.
