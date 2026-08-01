@@ -18,6 +18,14 @@ does cross-check them.
 | **Age rating** | 10+ |
 | **Price** | Free |
 | **Bundle ID** | `com.tb.wheredidiputit` |
+| **Copyright** | `2026 Tristan Blank` |
+
+Copyright is required and lives on the **version page**, under "General
+App Information" — the same section as the routing-app-coverage field,
+below App Review Information. Apple's format is the year the rights were
+obtained followed by the rights holder: no © symbol (Apple adds it), no
+"Copyright" prefix, no URL. Submission fails with "You must provide
+copyright information" until it's set.
 
 On the age rating: the questionnaire asks about user-generated content.
 Items are only ever visible inside one household, joined by invite code —
