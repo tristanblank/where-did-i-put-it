@@ -99,17 +99,39 @@ already indexes those, so "stasher" and "remember" would be wasted.
 
 ---
 
-## Required URLs
+## Required URLs — and they're on different pages
 
-| Field | Value |
-|---|---|
-| **Privacy Policy URL** | `https://tristanblank.github.io/where-did-i-put-it/privacy-policy` |
-| **Support URL** | `https://tristanblank.github.io/where-did-i-put-it/support` |
-| **Marketing URL** | optional, leave blank |
+| Field | Where | Value |
+|---|---|---|
+| **Privacy Policy URL** | App Information | `https://tristanblank.github.io/where-did-i-put-it/privacy-policy` |
+| **Support URL** | version page | `https://tristanblank.github.io/where-did-i-put-it/support` |
+| **Marketing URL** | version page | optional, leave blank |
 
-Support URL is a **separate required field** from the privacy policy —
-a missing or broken one is a rejection. `docs/support.md` in this repo is
-served at that address by the same GitHub Pages setup.
+These two look like a pair and are entered in different places, which is
+worth knowing before hunting for one on the wrong screen.
+
+Support URL is also a **separate required field** from the privacy
+policy — a missing or broken one is a rejection on its own. `docs/support.md`
+in this repo is served at that address by the same GitHub Pages setup.
+
+### Which page holds what
+
+Three separate screens, and it isn't obvious which owns what:
+
+**App Information** (left sidebar → General) — everything that applies to
+every version: name, subtitle, **privacy policy URL**, category, content
+rights, age rating.
+
+**Version page** ("1.0 Prepare for Submission") — everything specific to
+this release: screenshots, description, keywords, **support URL**, build,
+App Review Information, version release.
+
+**App Privacy** (left sidebar, its own item) — the nutrition label only.
+Completing it does *not* fill in the privacy policy URL above.
+
+Apple has been consolidating privacy settings, so the privacy policy URL
+may appear under App Privacy rather than App Information on some
+accounts. If it isn't in one, check the other.
 
 ---
 
