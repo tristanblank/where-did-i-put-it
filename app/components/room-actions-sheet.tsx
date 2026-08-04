@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { ICON_CHOICES } from '@/constants/defaults';
 import { Fonts } from '@/constants/theme';
@@ -90,6 +90,7 @@ export function RoomActionsSheet({ room, onClose }: RoomActionsSheetProps) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: t.tile, borderColor: t.border }]}>
+          <ScrollView contentContainerStyle={styles.sheetContent} bounces={false}>
         {mode === 'menu' && (
           <>
             <View style={styles.header}>
@@ -157,6 +158,7 @@ export function RoomActionsSheet({ room, onClose }: RoomActionsSheetProps) {
             </View>
           </>
         )}
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -175,6 +177,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    // Bottom-anchored, so content taller than the screen grows off the
+    // top rather than clipping at the bottom. Capping it keeps the
+    // backdrop tappable and lets the contents scroll instead.
+    maxHeight: '88%',
+  },
+  sheetContent: {
     padding: 20,
     paddingBottom: 36,
   },

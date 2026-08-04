@@ -6,6 +6,7 @@ import { LabelPath } from '@/components/label-path';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useHouseholdMembers } from '@/hooks/use-household-members';
+import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 
@@ -15,6 +16,7 @@ export default function ItemDetailScreen() {
   const t = useTheme();
   const { items, deleteItem, theme } = useItemsStore();
   const { nameFor } = useHouseholdMembers();
+  const { isLarge } = useLargeText();
 
   const item = items.find((i) => i.id === id);
   // Null for anything added before this device synced, and briefly for a
@@ -52,13 +54,17 @@ export default function ItemDetailScreen() {
               {addedBy ? ` · Added by ${addedBy}` : ''}
             </Text>
 
-            <View style={styles.actions}>
+            {/* Side by side, the primary button gets whatever "Delete"
+                doesn't need — which at large text sizes clipped "It
+                moved — update" down to "It mov". Stacked, both get the
+                full width. */}
+            <View style={[styles.actions, isLarge && styles.actionsStacked]}>
               <Pressable
                 onPress={() => router.push({ pathname: '/add', params: { id: item.id } })}
-                style={[styles.primaryButton, { backgroundColor: t.accent }]}>
+                style={[styles.primaryButton, isLarge && styles.buttonStacked, { backgroundColor: t.accent }]}>
                 <Text style={[styles.primaryButtonText, { color: t.accentInk }]}>It moved — update</Text>
               </Pressable>
-              <Pressable onPress={handleDelete} style={[styles.deleteButton, { borderColor: t.border }]}>
+              <Pressable onPress={handleDelete} style={[styles.deleteButton, isLarge && styles.buttonStacked, { borderColor: t.border }]}>
                 <Text style={[styles.deleteButtonText, { color: t.danger }]}>Delete</Text>
               </Pressable>
             </View>
@@ -102,6 +108,16 @@ const styles = StyleSheet.create({
     marginTop: 20,
     flexDirection: 'row',
     gap: 8,
+  },
+  actionsStacked: {
+    flexDirection: 'column',
+  },
+  // flex: 1 means "take the leftover width" in a row and "take the
+  // leftover height" in a column, so it has to be turned off when these
+  // stack or the top button stretches to fill the panel.
+  buttonStacked: {
+    flex: 0,
+    width: '100%',
   },
   primaryButton: {
     flex: 1,

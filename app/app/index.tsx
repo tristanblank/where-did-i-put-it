@@ -12,6 +12,7 @@ import { LabelPath } from '@/components/label-path';
 import { RoomActionsSheet } from '@/components/room-actions-sheet';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
+import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 
@@ -24,6 +25,7 @@ export default function HomeScreen() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [householdSheetOpen, setHouseholdSheetOpen] = useState(false);
   const [addRoomOpen, setAddRoomOpen] = useState(false);
+  const { isLarge } = useLargeText();
   const longPressTriggered = useRef(false);
 
   const bentoRooms = useMemo(() => {
@@ -49,8 +51,12 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.headerRow}>
-          <View>
+        {/* A row at default size; a stack once the title is wide enough to
+            shove the buttons off the edge. Those buttons are the only way
+            into the household sheet, which is the only way to delete an
+            account — losing them offscreen isn't cosmetic. */}
+        <View style={[styles.headerRow, isLarge && styles.headerRowStacked]}>
+          <View style={styles.headerTitleGroup}>
             <Text style={[styles.eyebrow, { color: t.accent }]}>Household index</Text>
             <Text style={[styles.title, { color: t.ink }]}>Stasher</Text>
           </View>
@@ -98,7 +104,9 @@ export default function HomeScreen() {
           )
         ) : (
           <>
-            <View style={styles.sortRow}>
+            {/* Same problem as the header: the label grows and pushes the
+                chips past the right edge, where they can't be tapped. */}
+            <View style={[styles.sortRow, isLarge && styles.sortRowStacked]}>
               <Text style={[styles.sortLabel, { color: t.sub }]}>Sort rooms</Text>
               <View style={styles.sortPills}>
                 <Chip label="By count" active={roomSort === 'count'} onPress={() => setRoomSort('count')} />
@@ -107,12 +115,12 @@ export default function HomeScreen() {
             </View>
 
             <View style={styles.grid}>
-              <View style={[baseTileStyle(t, theme), styles.statTile, { backgroundColor: t.accent, borderWidth: 0 }]}>
+              <View style={[baseTileStyle(t, theme), styles.statTile, isLarge && styles.fullWidthTile, { backgroundColor: t.accent, borderWidth: 0 }]}>
                 <Text style={[styles.statNumber, { color: t.accentInk }]}>{items.length}</Text>
                 <Text style={[styles.statLabel, { color: t.accentInk }]}>Things stashed</Text>
               </View>
 
-              <Pressable onPress={() => router.push('/add')} style={[baseTileStyle(t, theme), styles.addTile]}>
+              <Pressable onPress={() => router.push('/add')} style={[baseTileStyle(t, theme), styles.addTile, isLarge && styles.fullWidthTile]}>
                 <Text style={styles.addIcon}>➕</Text>
                 <Text style={[styles.addLabel, { color: t.ink }]}>Stash something</Text>
               </Pressable>
@@ -136,7 +144,7 @@ export default function HomeScreen() {
                     }
                     router.push({ pathname: '/room/[room]', params: { room } });
                   }}
-                  style={[baseTileStyle(t, theme), styles.smallRoomTile]}>
+                  style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
                   <View>
                     <Text style={{ fontSize: 22 }}>{iconForRoom(room)}</Text>
                     <View style={styles.roomNameGroup}>
@@ -154,7 +162,7 @@ export default function HomeScreen() {
                   often and this reads as the end of the room list. */}
               <Pressable
                 onPress={() => setAddRoomOpen(true)}
-                style={[baseTileStyle(t, theme), styles.smallRoomTile]}>
+                style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
                 <View>
                   <Text style={{ fontSize: 22 }}>➕</Text>
                   <View style={styles.roomNameGroup}>
@@ -221,6 +229,16 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 20,
   },
+  headerRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  // Lets the title shrink and wrap instead of pushing its siblings off the
+  // screen — a row child sizes to its content unless told otherwise.
+  headerTitleGroup: {
+    flexShrink: 1,
+  },
   eyebrow: {
     fontFamily: Fonts.bold,
     fontSize: 11,
@@ -276,6 +294,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
+  sortRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
   sortLabel: {
     fontFamily: Fonts.semiBold,
     fontSize: 11,
@@ -291,6 +314,12 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 12,
   },
+  // One column once text is large. Two 48%-wide tiles leave each label
+  // about half a phone wide, which is where "THINGS STASHED" starts
+  // breaking mid-word into "STASHE / D".
+  fullWidthTile: {
+    width: '100%',
+  },
   statTile: {
     width: '48%',
     minHeight: 96,
@@ -300,7 +329,10 @@ const styles = StyleSheet.create({
   statNumber: {
     fontFamily: Fonts.bold,
     fontSize: 34,
-    lineHeight: 34,
+    // Headroom, deliberately. lineHeight scales alongside fontSize, so a
+    // 1:1 ratio stays 1:1 at every text size and leaves the glyphs
+    // touching the edges of their own line box.
+    lineHeight: 40,
   },
   statLabel: {
     marginTop: 4,

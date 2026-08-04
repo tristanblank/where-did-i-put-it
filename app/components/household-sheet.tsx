@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, Modal, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useAuth } from '@/lib/auth-store';
@@ -209,14 +209,25 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose} />
+      {/* Capped and scrollable. The sheet is anchored to the bottom, so
+          content taller than the screen grows upward and disappears off
+          the top — at large text sizes that swallowed the household name
+          and everything below the fold. */}
       <View style={[styles.sheet, { backgroundColor: t.tile, borderColor: t.border }]}>
+        <ScrollView contentContainerStyle={styles.sheetContent} bounces={false}>
         <Text style={[styles.headerTitle, { color: t.ink }]}>{name ?? 'Household'}</Text>
         <Text style={[styles.subtitle, { color: t.sub }]}>
           Share this code so someone else can join and see the same data.
         </Text>
 
         <View style={[styles.codeTile, { backgroundColor: t.tileAlt, borderColor: t.border }]}>
-          <Text style={[styles.codeText, { color: t.ink, opacity: rotating ? 0.4 : 1 }]}>
+          {/* Never wraps. An 8-character code broken across two lines is
+              misread and mistyped — this is the one string in the app
+              where shrinking beats reflowing. */}
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            style={[styles.codeText, { color: t.ink, opacity: rotating ? 0.4 : 1 }]}>
             {inviteCode ?? '········'}
           </Text>
         </View>
@@ -288,6 +299,7 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
             {deleting ? 'Deleting account…' : 'Delete account'}
           </Text>
         </Pressable>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -302,6 +314,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    // This sheet has grown a lot — name field, member list, five actions.
+    // Bottom-anchored, so without a cap it grows off the top of the
+    // screen and takes the household name with it.
+    maxHeight: '88%',
+  },
+  sheetContent: {
     padding: 20,
     paddingBottom: 36,
   },

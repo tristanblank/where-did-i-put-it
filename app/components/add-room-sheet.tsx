@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Fonts } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -50,6 +50,7 @@ export function AddRoomSheet({ visible, onClose }: AddRoomSheetProps) {
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={close} />
         <View style={[styles.sheet, { backgroundColor: t.tile, borderColor: t.border }]}>
+          <ScrollView contentContainerStyle={styles.sheetContent} bounces={false}>
           <Text style={[styles.headerTitle, { color: t.ink }]}>Add a room</Text>
           <Text style={[styles.subtitle, { color: t.sub }]}>
             A garage, a shed, a storage unit — anywhere you put things.
@@ -78,6 +79,7 @@ export function AddRoomSheet({ visible, onClose }: AddRoomSheetProps) {
           <Pressable style={[styles.cancelRow, { borderColor: t.border }]} onPress={close}>
             <Text style={[styles.cancelText, { color: t.sub }]}>Cancel</Text>
           </Pressable>
+          </ScrollView>
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -96,6 +98,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
+    maxHeight: '88%',
+  },
+  sheetContent: {
     padding: 20,
     paddingBottom: 36,
   },
