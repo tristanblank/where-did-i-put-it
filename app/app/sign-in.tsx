@@ -187,12 +187,10 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.bold,
     fontSize: 26,
-    lineHeight: 30,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    lineHeight: 20,
     marginBottom: 28,
   },
   appleButton: {
@@ -249,7 +247,6 @@ const styles = StyleSheet.create({
   },
   sentBody: {
     fontSize: 14,
-    lineHeight: 20,
   },
   error: {
     marginTop: 16,

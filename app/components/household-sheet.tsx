@@ -331,7 +331,6 @@ const styles = StyleSheet.create({
   subtitle: {
     marginTop: 6,
     fontSize: 13,
-    lineHeight: 18,
     textAlign: 'center',
   },
   codeTile: {
@@ -382,7 +381,6 @@ const styles = StyleSheet.create({
   sectionHint: {
     marginTop: 8,
     fontSize: 12,
-    lineHeight: 16,
   },
   nameRow: {
     flexDirection: 'row',

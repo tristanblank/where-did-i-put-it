@@ -289,12 +289,10 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: Fonts.bold,
     fontSize: 26,
-    lineHeight: 30,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 14,
-    lineHeight: 20,
     marginBottom: 24,
   },
   choiceTile: {

@@ -64,10 +64,10 @@ export default function HomeScreen() {
             <Pressable
               onPress={() => setHouseholdSheetOpen(true)}
               style={[baseTileStyle(t, theme), styles.themeToggle]}>
-              <Text style={styles.themeToggleIcon}>👥</Text>
+              <Text allowFontScaling={false} style={styles.themeToggleIcon}>👥</Text>
             </Pressable>
             <Pressable onPress={toggleTheme} style={[baseTileStyle(t, theme), styles.themeToggle]}>
-              <Text style={styles.themeToggleIcon}>{theme === 'light' ? '🌙' : '☀️'}</Text>
+              <Text allowFontScaling={false} style={styles.themeToggleIcon}>{theme === 'light' ? '🌙' : '☀️'}</Text>
             </Pressable>
           </View>
         </View>
@@ -121,7 +121,7 @@ export default function HomeScreen() {
               </View>
 
               <Pressable onPress={() => router.push('/add')} style={[baseTileStyle(t, theme), styles.addTile, isLarge && styles.fullWidthTile]}>
-                <Text style={styles.addIcon}>➕</Text>
+                <Text allowFontScaling={false} style={styles.addIcon}>➕</Text>
                 <Text style={[styles.addLabel, { color: t.ink }]}>Stash something</Text>
               </Pressable>
 
@@ -146,7 +146,7 @@ export default function HomeScreen() {
                   }}
                   style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
                   <View>
-                    <Text style={{ fontSize: 22 }}>{iconForRoom(room)}</Text>
+                    <Text allowFontScaling={false} style={{ fontSize: 22 }}>{iconForRoom(room)}</Text>
                     <View style={styles.roomNameGroup}>
                       <Text style={[styles.roomName, { color: t.ink }]}>{room}</Text>
                     </View>
@@ -164,7 +164,7 @@ export default function HomeScreen() {
                 onPress={() => setAddRoomOpen(true)}
                 style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
                 <View>
-                  <Text style={{ fontSize: 22 }}>➕</Text>
+                  <Text allowFontScaling={false} style={{ fontSize: 22 }}>➕</Text>
                   <View style={styles.roomNameGroup}>
                     <Text style={[styles.roomName, { color: t.sub }]}>Add a room</Text>
                   </View>
@@ -245,10 +245,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.88,
     textTransform: 'uppercase',
   },
+  // No explicit lineHeight on anything that scales. React Native applies
+  // fontScale to fontSize but leaves a hard-coded lineHeight exactly where
+  // it is, so at the largest text sizes an 81pt glyph gets squeezed into a
+  // 30pt line box and renders as a clipped sliver. Letting the platform
+  // derive it from the final font size is the only thing that holds at
+  // every size.
   title: {
     fontFamily: Fonts.bold,
     fontSize: 26,
-    lineHeight: 30,
   },
   headerButtons: {
     flexDirection: 'row',
@@ -329,10 +334,6 @@ const styles = StyleSheet.create({
   statNumber: {
     fontFamily: Fonts.bold,
     fontSize: 34,
-    // Headroom, deliberately. lineHeight scales alongside fontSize, so a
-    // 1:1 ratio stays 1:1 at every text size and leaves the glyphs
-    // touching the edges of their own line box.
-    lineHeight: 40,
   },
   statLabel: {
     marginTop: 4,

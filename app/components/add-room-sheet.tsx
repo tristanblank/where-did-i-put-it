@@ -113,7 +113,6 @@ const styles = StyleSheet.create({
     marginTop: 6,
     marginBottom: 16,
     fontSize: 13,
-    lineHeight: 18,
     textAlign: 'center',
   },
   input: {
