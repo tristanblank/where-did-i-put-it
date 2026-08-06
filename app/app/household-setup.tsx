@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useAuth } from '@/lib/auth-store';
+import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 import { migrateLegacyLocalData } from '@/lib/migrate-legacy-data';
@@ -14,6 +15,9 @@ type Mode = 'choice' | 'create' | 'join' | 'created';
 
 export default function HouseholdSetupScreen() {
   const t = useTheme();
+  // Remounts this screen when the system text size changes; see the
+  // note on the home screen for why that is necessary.
+  const { fontScale } = useLargeText();
   const { theme, applyMigration, clearLocalData } = useItemsStore();
   const { session, refreshHouseholdId, signOut, deleteAccount } = useAuth();
   const [mode, setMode] = useState<Mode>('choice');
@@ -142,7 +146,7 @@ export default function HouseholdSetupScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView key={fontScale} style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
           {mode === 'choice' && (
             <>

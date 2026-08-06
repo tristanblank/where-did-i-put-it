@@ -5,6 +5,7 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { ItemCard } from '@/components/item-card';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
+import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 
@@ -12,6 +13,9 @@ export default function RoomScreen() {
   const { room } = useLocalSearchParams<{ room: string }>();
   const router = useRouter();
   const t = useTheme();
+  // Remounts this screen when the system text size changes; see the
+  // note on the home screen for why that is necessary.
+  const { fontScale } = useLargeText();
   const { sortedItems, iconForRoom, theme } = useItemsStore();
 
   const roomItems = sortedItems.filter((i) => i.room === room);
@@ -19,7 +23,7 @@ export default function RoomScreen() {
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]} edges={['bottom']}>
       <Stack.Screen options={{ title: room }} />
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView key={fontScale} contentContainerStyle={styles.content}>
         <View style={styles.headerRow}>
           <Text style={[styles.title, { color: t.ink }]}>
             {iconForRoom(room)} {room}

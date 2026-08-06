@@ -25,7 +25,7 @@ export default function HomeScreen() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [householdSheetOpen, setHouseholdSheetOpen] = useState(false);
   const [addRoomOpen, setAddRoomOpen] = useState(false);
-  const { isLarge } = useLargeText();
+  const { isLarge, fontScale } = useLargeText();
   const longPressTriggered = useRef(false);
 
   const bentoRooms = useMemo(() => {
@@ -50,7 +50,17 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      {/* Keyed on fontScale so a text-size change remounts the tree.
+          Without it, headings rendered as clipped slivers: a Text whose
+          own props don't change is skipped on re-render — the React
+          Compiler memoizes these aggressively — so its native view keeps
+          the height it was measured at under the old font size while the
+          glyphs inside it get bigger. Everything that *did* re-render
+          (the tiles, which take isLarge in their style) measured
+          correctly, which is exactly the split the screenshots showed.
+          Remounting is blunt, but it re-measures everything and costs a
+          scroll position on an action nobody takes twice in a session. */}
+      <ScrollView key={fontScale} contentContainerStyle={styles.content}>
         {/* A row at default size; a stack once the title is wide enough to
             shove the buttons off the edge. Those buttons are the only way
             into the household sheet, which is the only way to delete an

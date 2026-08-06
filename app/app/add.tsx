@@ -9,6 +9,7 @@ import { LabelPath } from '@/components/label-path';
 import { POSITIONS } from '@/constants/defaults';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
+import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 
@@ -16,6 +17,9 @@ export default function AddItemScreen() {
   const { room: presetRoom, id } = useLocalSearchParams<{ room?: string; id?: string }>();
   const router = useRouter();
   const t = useTheme();
+  // Remounts this screen when the system text size changes; see the
+  // note on the home screen for why that is necessary.
+  const { fontScale } = useLargeText();
   const { items, allRooms, spotsForRoom, addItem, updateItem, addRoom, addSpot, theme } = useItemsStore();
 
   const editingItem = id ? items.find((i) => i.id === id) : undefined;
@@ -89,7 +93,7 @@ export default function AddItemScreen() {
     <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]} edges={['bottom']}>
       <Stack.Screen options={{ title: editingItem ? 'Edit Item' : 'Add Item' }} />
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        <ScrollView key={fontScale} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={[baseTileStyle(t, theme), styles.panel]}>
             <Field label="What is it?">
               <TextInput

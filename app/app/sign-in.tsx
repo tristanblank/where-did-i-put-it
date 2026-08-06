@@ -6,11 +6,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useAuth } from '@/lib/auth-store';
+import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 
 export default function SignInScreen() {
   const t = useTheme();
+  // Remounts this screen when the system text size changes; see the
+  // note on the home screen for why that is necessary.
+  const { fontScale } = useLargeText();
   const { theme } = useItemsStore();
   const { signInWithApple, signInWithEmailOtp, verifyEmailOtp } = useAuth();
   const [appleAvailable, setAppleAvailable] = useState(false);
@@ -82,7 +86,7 @@ export default function SignInScreen() {
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]}>
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView key={fontScale} style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.content}>
           <Text style={[styles.eyebrow, { color: t.accent }]}>Stasher</Text>
           <Text style={[styles.title, { color: t.ink }]}>Sign in to your household</Text>
