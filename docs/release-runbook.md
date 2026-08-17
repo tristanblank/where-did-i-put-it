@@ -84,11 +84,21 @@ create the matching version record in App Store Connect.
 ## Submitting
 
 ```bash
-eas submit --platform ios --latest
+eas submit --platform ios --profile production --id <build-id>
 ```
 
-Uploads the most recent build to App Store Connect. Apple then processes
-it for 10–30 minutes and emails you when it lands in TestFlight.
+Uploads that build to App Store Connect. Apple then processes it for
+10–30 minutes and emails you when it lands in TestFlight.
+
+Prefer `--id` over `--latest`. `--latest` means the newest iOS build of
+any profile, so a preview build made after the production one gets
+submitted instead — an ad-hoc-signed binary App Store Connect will
+reject. Get the id from `eas build:list --profile production --limit 1`
+and check its `Commit` before submitting.
+
+`ascAppId` is set in the `production` submit profile, which is what lets
+this run `--non-interactive`. Without it the command stops and asks,
+which is fine by hand and a hang in a script.
 
 **TestFlight is not App Review.** You can iterate on TestFlight builds
 freely; review only starts when you explicitly submit a version from App
@@ -157,14 +167,25 @@ get_advisors(type: "performance")
 ## The order that works
 
 1. `git status` clean, note the commit
-2. `eas env:list --environment production` — variables present
-3. `eas build --profile production --platform ios`
-4. `eas submit --platform ios --latest`
-5. Wait for Apple to finish processing
-6. TestFlight → verify on a real device, including Sign in with Apple
+2. Bump `expo.version` in `app.json` by hand — the build number
+   auto-increments, the marketing version never does
+3. `eas env:list --environment production` — variables present
+4. `eas build --profile production --platform ios`
+5. **Check the finished build's `Commit` is the one you meant.** 1.0 was
+   released from a binary three commits stale because this step was
+   skipped: the fixes existed, were committed, and had only ever gone
+   into preview builds
+6. `eas submit --platform ios --profile production --id <build-id>`
+7. Wait for Apple to finish processing
+8. TestFlight → verify on a real device, including Sign in with Apple
    (release signing differs from development, and only this build proves
    it works)
-7. App Store Connect → submit for review
+9. App Store Connect → create the version record, attach the build, set
+   **Manually release this version** (each new version starts on
+   automatic), then submit for review
 
-Steps 5–7 are where a bad build costs a day. Steps 1–2 are thirty seconds
+Steps 7–9 are where a bad build costs a day. Steps 1–3 are thirty seconds
 and have already caught one launch-blocking problem.
+
+`eas submit` uploads; it does not start review. Nothing reaches a
+reviewer until step 9.
