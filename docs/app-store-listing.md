@@ -232,3 +232,22 @@ Version page → **Version Release** (last section, below Build) →
 The default is automatic, so this has to be changed deliberately.
 Manual keeps approval and launch as separate events, so the app goes live
 when you decide rather than the moment a reviewer clicks approve.
+
+Note that this choice does **not** carry over to the next version — each
+new version page starts on automatic again.
+
+---
+
+## What's New (4000 chars) — 1.0.1
+
+Only appears on a version after the first, so 1.0 had no such field.
+
+```
+Stasher now follows your iPhone's text size settings properly. If you use
+larger text, headings no longer get cut off, icons stay the size they
+should be, and the layout adjusts to fit — including when you change the
+setting while the app is open.
+```
+
+Plain language on purpose: "Dynamic Type" is Apple's word for it, not
+something a user reading the store page would search for or recognise.
