@@ -71,6 +71,41 @@ discarded, and takes the code down with it. That was a real bug.
 - **Apple** — enabled. The client uses `signInWithIdToken` with a
   SHA-256-hashed nonce, so no OAuth redirect is involved.
 - **Email** — enabled, used only for OTP codes.
+- **Google** — enabled. Also `signInWithIdToken`, from a native sheet, so
+  again no OAuth redirect and no `stasher://` callback.
+
+### Google's client IDs
+
+Three values, from **Google Cloud Console → APIs & Services →
+Credentials**, and they are not interchangeable:
+
+| Value | Where it goes |
+|---|---|
+| **iOS** client ID | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` |
+| **Web** client ID | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, *and* Supabase's **Authorized Client IDs** |
+| Reversed **iOS** client ID | `iosUrlScheme` in `app.json` |
+
+The Web client ID is required even though the app is iOS-only. Google
+mints the ID token against the *web* client, and that is the audience
+Supabase checks. Configure only `iosClientId` and the token comes back
+with the wrong audience and Supabase rejects it — the sign-in sheet
+succeeds and the app still doesn't let you in, which reads as a broken
+account rather than a config error.
+
+The iOS OAuth client must carry the bundle id `com.tb.wheredidiputit`.
+Google matches on it, and a mismatch fails at the sheet.
+
+**The OAuth consent screen has to be Published.** Left in "Testing" —
+its default — only accounts explicitly added as test users can sign in,
+capped at 100, and everyone else gets "app is blocked". Publishing does
+not require Google's review as long as the scopes stay limited to email
+and profile, which is all this app requests.
+
+`iosUrlScheme` is a build-time literal in `app.json`, so it is **not**
+covered by the env-var check in the release runbook, and the app-side
+guard that hides the Google button can't see it either. Getting the env
+vars right and the URL scheme wrong yields a visible button that fails
+mid-flow. Check it by eye before a build.
 
 Password sign-in is not used by any screen. One account acquired a
 password from the dashboard's "Add user" form, which requires one; it was

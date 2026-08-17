@@ -1,11 +1,12 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
+import AntDesign from '@expo/vector-icons/AntDesign';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
-import { useAuth } from '@/lib/auth-store';
+import { googleSignInConfigured, useAuth } from '@/lib/auth-store';
 import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
@@ -16,7 +17,7 @@ export default function SignInScreen() {
   // note on the home screen for why that is necessary.
   const { fontScale } = useLargeText();
   const { theme } = useItemsStore();
-  const { signInWithApple, signInWithEmailOtp, verifyEmailOtp } = useAuth();
+  const { signInWithApple, signInWithGoogle, signInWithEmailOtp, verifyEmailOtp } = useAuth();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -39,6 +40,19 @@ export default function SignInScreen() {
         console.error('Apple sign-in error', JSON.stringify(e), e);
         setError('Sign in with Apple failed. Please try again.');
       }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleGoogle = async () => {
+    setError(null);
+    setBusy(true);
+    try {
+      await signInWithGoogle();
+    } catch (e) {
+      console.error('Google sign-in error', JSON.stringify(e), e);
+      setError('Sign in with Google failed. Please try again.');
     } finally {
       setBusy(false);
     }
@@ -106,6 +120,23 @@ export default function SignInScreen() {
               style={styles.appleButton}
               onPress={handleApple}
             />
+          )}
+
+          {googleSignInConfigured && (
+            <Pressable
+              onPress={handleGoogle}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityLabel="Sign in with Google"
+              style={[
+                styles.googleButton,
+                { backgroundColor: t.tile, borderColor: t.border },
+                appleAvailable && styles.googleButtonSpacing,
+                busy && styles.disabled,
+              ]}>
+              <AntDesign name="google" size={18} color={t.ink} />
+              <Text style={[styles.googleButtonText, { color: t.ink }]}>Sign in with Google</Text>
+            </Pressable>
           )}
 
           <View style={styles.dividerRow}>
@@ -200,6 +231,27 @@ const styles = StyleSheet.create({
   appleButton: {
     width: '100%',
     height: 48,
+  },
+  googleButton: {
+    width: '100%',
+    minHeight: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    // Padding rather than a fixed height so the label still fits when the
+    // system text size is turned up — the bug 1.0.1 exists to fix.
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  googleButtonSpacing: {
+    marginTop: 12,
+  },
+  googleButtonText: {
+    fontFamily: Fonts.semiBold,
+    fontSize: 16,
   },
   dividerRow: {
     flexDirection: 'row',

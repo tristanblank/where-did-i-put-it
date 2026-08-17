@@ -102,8 +102,9 @@ The app is free and complete as submitted.
 No demo account is needed, and "Sign-in required" is unchecked because
 the app has no passwords.
 
-Sign in either way:
-- Sign in with Apple, using any Apple ID, or
+Sign in any of three ways:
+- Sign in with Apple, using any Apple ID,
+- Sign in with Google, using any Google account, or
 - the email option: enter any address and we email an 8-digit code.
   There is no password and no link to click.
 
@@ -131,11 +132,14 @@ account and its data, and signs the device out.
   security in the database restricts each household's items to its own
   members.
 - Sign in with Apple — authentication only.
+- Sign in with Google — authentication only. We receive the account's
+  email address and name, and nothing else; no Google service beyond
+  sign-in is used and no Google data is read.
 - Expo Application Services — build tooling, not contacted at runtime.
 
 No payment processor, no AI service, no advertising or attribution SDK,
 no analytics, no crash reporter. The app makes no network requests to
-anything other than Supabase and Apple's sign-in service.
+anything other than Supabase and the Apple and Google sign-in services.
 
 6. REGIONAL DIFFERENCES
 

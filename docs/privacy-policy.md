@@ -32,16 +32,24 @@ To sign in, Stasher records:
   (`@privaterelay.appleid.com`) instead of your real one — in that case
   Stasher never receives your actual email address at all.
 - **An account identifier.** A random ID for your account, plus the
-  identifier Apple provides if you sign in with Apple.
+  identifier Apple or Google provides if you sign in with one of those.
+
+If you sign in with Google, Google also passes along the name and profile
+picture on your Google account. Stasher doesn't use either one — nothing
+in the app displays them — but they are stored with your account record,
+so it would be wrong to say they aren't received.
 
 Stasher does **not** collect your name from Apple, your phone number,
 your contacts, your location, your photos, or your device's advertising
-identifier.
+identifier. Signing in with Google gives Stasher no access to your Gmail,
+Drive, calendar, or contacts — only the email address and name on the
+account.
 
 ### The name you choose
 
 You can optionally set a display name or nickname. It's whatever you type
-— Stasher doesn't take it from your Apple account or your email. It's
+— Stasher doesn't take it from your Apple or Google account, or your
+email. It's
 visible to the other people in your household, next to items you added,
 and nowhere else. Leaving it blank is fine.
 
@@ -116,6 +124,8 @@ signal; that copy is removed when you sign out.
   codes.
 - **Apple** — if you use Sign in with Apple. Apple's own privacy policy
   governs what Apple does with that.
+- **Google** — if you use Sign in with Google. Google's own privacy
+  policy governs what Google does with that.
 
 Nobody else receives your data.
 

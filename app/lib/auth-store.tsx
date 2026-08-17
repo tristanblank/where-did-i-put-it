@@ -1,11 +1,38 @@
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as Linking from 'expo-linking';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import { GoogleSignin, isSuccessResponse } from '@react-native-google-signin/google-signin';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/lib/supabase';
+
+// Both are public identifiers, not secrets — they ship inside the binary
+// either way, and Google's security model doesn't depend on hiding them.
+// They live in the environment only so an unconfigured checkout doesn't
+// present a sign-in button that cannot work.
+const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+
+// The sign-in screen hides the Google button when this is false. Deliberate:
+// the alternative is a button that opens Google, succeeds, and then fails at
+// the Supabase exchange — which looks like the account is broken rather than
+// like the app was built without the credentials.
+export const googleSignInConfigured = Boolean(googleIosClientId && googleWebClientId);
+
+// configure() is synchronous and idempotent, so it belongs at module load
+// rather than in a component body where it would re-run on every render.
+if (googleSignInConfigured) {
+  GoogleSignin.configure({
+    iosClientId: googleIosClientId,
+    // Not an oversight on an iOS-only app: Google mints the ID token against
+    // the *web* client, and it is the audience Supabase checks the token
+    // against. Without it the token comes back scoped to the iOS client and
+    // Supabase rejects it.
+    webClientId: googleWebClientId,
+  });
+}
 
 type AuthStore = {
   session: Session | null;
@@ -21,6 +48,7 @@ type AuthStore = {
   // one, which reads like their data is gone.
   householdResolved: boolean;
   signInWithApple: () => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signInWithEmailOtp: (email: string) => Promise<void>;
   verifyEmailOtp: (email: string, token: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -161,6 +189,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  // No nonce here, unlike the Apple flow above. Apple returns a token bound
+  // to a nonce we generate; Google only puts a nonce claim in the token if
+  // one was requested, and Supabase validates that claim only when present.
+  // Passing one through this library's iOS path isn't supported, so the
+  // token is validated by audience and signature alone — which is what
+  // Supabase's own React Native example does.
+  const signInWithGoogle = async () => {
+    if (!googleSignInConfigured) {
+      throw new Error(
+        'Google sign-in is not configured. Set EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID and ' +
+          'EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID — see backend/supabase/auth-config.md.'
+      );
+    }
+
+    // Android-only check, and it throws on a device without Play Services
+    // rather than returning false. Nothing to check on iOS.
+    if (Platform.OS === 'android') await GoogleSignin.hasPlayServices();
+
+    const response = await GoogleSignin.signIn();
+
+    // Cancelling returns a response with type 'cancelled' rather than
+    // throwing, so this is the normal "user backed out" path, not a failure.
+    if (!isSuccessResponse(response)) return;
+
+    const idToken = response.data.idToken;
+    if (!idToken) {
+      throw new Error("Google didn't return an identity token");
+    }
+
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: 'google',
+      token: idToken,
+    });
+    if (error) throw error;
+  };
+
   const signInWithEmailOtp = async (email: string) => {
     const { error } = await supabase.auth.signInWithOtp({
       email,
@@ -211,6 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializing,
     householdResolved,
     signInWithApple,
+    signInWithGoogle,
     signInWithEmailOtp,
     verifyEmailOtp,
     signOut,
