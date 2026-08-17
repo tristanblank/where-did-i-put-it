@@ -112,9 +112,52 @@ Two things shipped knowingly: a create-then-rename race that briefly shows a dup
 
 ## Phase 6 — Review & Launch
 
-1. Expect 1–2 days for review. If rejected, read the note carefully — it's almost always something small (broken privacy link, missing account deletion, vague permission text). Fix, resubmit; turnaround on resubmission is usually fast.
-2. Release manually (recommended) so launch happens when you choose.
-3. Post-launch: watch Supabase logs and crash reports (add **Sentry** via `sentry-expo` in a point release if you want proper crash visibility).
+1. [x] Expect 1–2 days for review. If rejected, read the note carefully — it's almost always something small (broken privacy link, missing account deletion, vague permission text). Fix, resubmit; turnaround on resubmission is usually fast.
+2. [x] Release manually (recommended) so launch happens when you choose.
+3. [ ] Post-launch: watch Supabase logs and crash reports (add **Sentry** via `sentry-expo` in a point release if you want proper crash visibility).
+
+**Checkpoint:** ✅ Live on the App Store 17 August 2026, 19:11 UTC —
+"Stasher - Home Inventory", `id6788215703`, version 1.0.
+
+Rejected once under **guideline 2.1 (Information Needed)** — seven written
+questions plus a screen recording, no code change required. Answered in
+the Resolution Center; the reply is `docs/app-review-reply.md`, and the
+same text now lives in App Review Information → Notes so the next
+submission doesn't ask again. Approved on the reply alone, without a new
+build.
+
+Two things learned at release, both worth knowing next time:
+
+- **"Available" in the territory list is not the release indicator.** It
+  describes where the app *would* be sold and reads Available while a
+  version still sits in Pending Developer Release. The status that
+  answers "is it live" is **Ready for Distribution** on the version page.
+- **The product page goes live immediately; search indexing does not.**
+  For hours after release a bundle-id lookup returned the app while
+  searching its own name returned nothing. That gap is normal — usually
+  under 24 hours — and is not a sign anything went wrong.
+
+Also worth carrying into the keyword field: `stasher` alone is owned in
+search by "Stasher Luggage Storage" and returns a full page of luggage
+apps. The realistic search term is the full name, and "home inventory"
+already has five established competitors.
+
+---
+
+## 1.0.1 — Dynamic Type fixes
+
+1.0 shipped from commit `0a65f26` (31 July). The three text-size commits
+landed 3–5 August and went only into preview builds, so the approved
+binary never contained them: at large Dynamic Type settings the live 1.0
+clips headings and oversizes icons.
+
+Contents: `e69e1d6` (layout responds to text size), `5127934` (clipped
+headings, giant icons, half-applied scaling), `bd56be7` (remount screens
+on text-size change so headings re-measure). Binary-only — no metadata
+change beyond What's New.
+
+**Check the production build's commit before submitting.** This release
+exists because that check wasn't made on the last one.
 
 ---
 
