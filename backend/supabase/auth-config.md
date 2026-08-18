@@ -116,6 +116,66 @@ app never uses.
 
 ---
 
+## Custom SMTP — not optional
+
+**Authentication → Emails → SMTP Settings**
+
+Without custom SMTP, Supabase Auth **refuses to deliver to any address
+that is not a member of the project's organization**, failing with
+`Email address not authorized`. This is not a rate limit and does not
+ease off; the 2-messages-per-hour cap applies on top of it, to the few
+addresses that are allowed at all.
+
+So the email one-time code — one of only two ways into this app — works
+for nobody but us until this is set. 1.0 shipped that way. The reviewer
+happened to use Sign in with Apple; the App Review notes invite them to
+use email instead, so that was luck rather than design.
+
+The client makes it worse by being tidy: `handleEmailCode` in
+`sign-in.tsx` catches the failure and shows "Couldn't send the code.
+Check the address and try again." A stranger reads that as their own typo
+and retries forever.
+
+### Provider: Brevo
+
+Chosen because it needs no domain. We don't own one — the public pages
+are on `tristanblank.github.io`, a GitHub subdomain with no DNS access,
+so SPF/DKIM domain verification isn't possible.
+
+| Field | Value |
+|---|---|
+| Host | `smtp-relay.brevo.com` |
+| Port | `587` (STARTTLS; 465 and 2525 also offered) |
+| Username | the **SMTP login** shown in Brevo's SMTP tab — newer accounts show a generated `…@smtp-brevo.com` address rather than the account email, so read it off the dashboard rather than assuming |
+| Password | the **SMTP key**, generated in Brevo under **SMTP & API → SMTP**. Not the account password and not an API key — those fail with `535` |
+| Sender email | a validated sender, added under **Senders, Domains & Dedicated IPs → Senders** and confirmed by clicking a link Brevo emails |
+| Free tier | 300 emails/day |
+
+Copy the SMTP key with no leading or trailing whitespace. A single stray
+character produces a `535` that reads like wrong credentials.
+
+### The deliverability caveat we accepted
+
+Sending from a `@gmail.com` sender through Brevo's relay means the
+`From:` domain and the signing domain don't align, so the message fails
+DMARC alignment for `gmail.com`. Gmail and Yahoo have been tightening on
+exactly this since their 2024 bulk-sender rules, so codes are more likely
+to land in spam than they would from an owned domain.
+
+Accepted deliberately to unblock the app without buying a domain. If
+sign-in codes start going missing, that's the first thing to suspect, and
+the fix is a domain plus three DNS records rather than anything in this
+repo.
+
+### After enabling it
+
+Supabase drops a fresh **30 messages/hour** limit on newly configured
+SMTP to protect its own reputation. At one code per sign-in attempt that
+is low for a public app, and it fails the same silent way. Raise it at
+**Authentication → Rate Limits**.
+
+---
+
 ## Not enabled
 
 **Leaked password protection** is a Pro feature and this project is on the
@@ -125,6 +185,11 @@ HaveIBeenPwned when one is set, and no account has or needs a password.
 ---
 
 ## What breaks if this is lost
+
+Custom SMTP is the one whose absence is invisible from the app's side: no
+error in the logs the client can see, no crash, just codes that never
+arrive for anyone outside the organization.
+
 
 Recreating the project from `schema.sql` alone gives a working database
 and a broken sign-in: emailed links pointing at localhost, and templates
