@@ -166,20 +166,57 @@ to write to.
 Copy the SMTP key with no leading or trailing whitespace. A single stray
 character produces a `535` that reads like wrong credentials.
 
-### The deliverability caveat we accepted
+### What actually happens to the sender: the brevosend.com rewrite
 
-Sending from a `@gmail.com` sender through Brevo's relay means the
-`From:` domain and the signing domain don't align, so the message fails
-DMARC alignment for `gmail.com`. Using an app-specific Gmail address
-rather than a personal one changes nothing here — the domain is what
-matters, not the mailbox. Gmail and Yahoo have been tightening on
-exactly this since their 2024 bulk-sender rules, so codes are more likely
-to land in spam than they would from an owned domain.
+`gmail.com` cannot be authenticated in Brevo — domain authentication
+needs DNS control, and that domain is Google's. Rather than send
+unauthenticated mail that Gmail and Yahoo would refuse under their
+February 2024 sender rules, Brevo **silently rewrites the sending domain
+to `@brevosend.com`**, which it can DKIM-sign itself.
 
-Accepted deliberately to unblock the app without buying a domain. If
-sign-in codes start going missing, that's the first thing to suspect, and
-the fix is a domain plus three DNS records rather than anything in this
-repo.
+Confirmed in practice: the first working code arrived from a
+`brevosend.com` sender, not from `stasherdotapp@gmail.com`.
+
+So the mail is properly authenticated and does get delivered — the
+earlier worry about failing DMARC alignment was the wrong mechanism. The
+costs are paid elsewhere:
+
+- **Sign-in codes arrive from a domain the user has never seen.** It is
+  the most phishing-shaped message the app sends, and it arrives looking
+  like phishing.
+- **No sending reputation accrues to us.** We inherit `brevosend.com`'s,
+  shared with Brevo's entire free tier. Spam placement is a real risk
+  with no lever to improve it.
+- **It is not a toggle.** The rewrite applies whenever the sender domain
+  is unauthenticated. Owning a domain is the only exit.
+
+Set the Sender name to `Stasher`. The display name is what Gmail shows
+most prominently, and it is the only part of the sender we control.
+
+Accepted deliberately to ship without buying a domain. The fix, when it
+comes, is a domain plus Brevo's DKIM records — nothing in this repo
+changes, and the same domain would also replace the `github.io` Support
+and Privacy Policy URLs on the App Store listing.
+
+### The 525 that blocks it on day one
+
+Brevo enables **IP security** by default on accounts created after
+16 May 2024, so a new account refuses the very first send with
+`525 "5.7.1 Unauthorized IP address"` — before authentication is even
+attempted. It looks like a credentials problem and isn't; wrong
+credentials give `535`.
+
+Fix at **Brevo → Settings → Security → Authorized IPs → Deactivate
+blocking**. Deactivate rather than allowlist: Supabase sends from a pool
+of IPs it neither publishes nor holds stable, so any list would work
+today and fail silently later. Also check the **Unauthorized** list is
+empty — an address there stays blocked even if it is also listed as
+authorized.
+
+The app surfaces none of this. `handleEmailCode` in `sign-in.tsx` shows
+"Couldn't send the code. Check the address and try again," so the failure
+reads as the user's own typo. The real error is in **auth_logs**, which
+is where to look first when codes stop arriving.
 
 ### After enabling it
 
