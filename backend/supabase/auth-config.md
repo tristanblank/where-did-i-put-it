@@ -148,8 +148,20 @@ so SPF/DKIM domain verification isn't possible.
 | Port | `587` (STARTTLS; 465 and 2525 also offered) |
 | Username | the **SMTP login** shown in Brevo's SMTP tab — newer accounts show a generated `…@smtp-brevo.com` address rather than the account email, so read it off the dashboard rather than assuming |
 | Password | the **SMTP key**, generated in Brevo under **SMTP & API → SMTP**. Not the account password and not an API key — those fail with `535` |
-| Sender email | a validated sender, added under **Senders, Domains & Dedicated IPs → Senders** and confirmed by clicking a link Brevo emails |
+| Sender email | `stasherdotapp@gmail.com` — validated under **Senders, Domains & Dedicated IPs → Senders** by clicking a link Brevo emails to that inbox |
+| Sender name | `Stasher` |
 | Free tier | 300 emails/day |
+
+The sender does not have to match the Brevo account login; senders are
+managed separately and several can be validated. It must match what's in
+Supabase's Sender email field **exactly**, or Brevo refuses the message
+at send time.
+
+`stasherdotapp@gmail.com` is deliberate rather than convenient: it is
+already the contact address published in `docs/support.md` and
+`docs/privacy-policy.md`, which sit behind the App Store Support and
+Privacy Policy URLs. Codes now come from the same address users are told
+to write to.
 
 Copy the SMTP key with no leading or trailing whitespace. A single stray
 character produces a `535` that reads like wrong credentials.
@@ -158,7 +170,9 @@ character produces a `535` that reads like wrong credentials.
 
 Sending from a `@gmail.com` sender through Brevo's relay means the
 `From:` domain and the signing domain don't align, so the message fails
-DMARC alignment for `gmail.com`. Gmail and Yahoo have been tightening on
+DMARC alignment for `gmail.com`. Using an app-specific Gmail address
+rather than a personal one changes nothing here — the domain is what
+matters, not the mailbox. Gmail and Yahoo have been tightening on
 exactly this since their 2024 bulk-sender rules, so codes are more likely
 to land in spam than they would from an owned domain.
 
