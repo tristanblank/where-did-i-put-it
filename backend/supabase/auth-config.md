@@ -120,21 +120,27 @@ app never uses.
 
 **Authentication → Emails → SMTP Settings**
 
-Without custom SMTP, Supabase Auth **refuses to deliver to any address
-that is not a member of the project's organization**, failing with
-`Email address not authorized`. This is not a rate limit and does not
-ease off; the 2-messages-per-hour cap applies on top of it, to the few
-addresses that are allowed at all.
+Supabase's default email service caps sending at **2 messages per hour**
+and carries **no delivery or uptime SLA** — it is documented as being for
+exploration and demos, not production. Email one-time code is one of only
+two ways into this app, so 1.0 shipped on a sender that could serve about
+two sign-ins an hour across all users.
 
-So the email one-time code — one of only two ways into this app — works
-for nobody but us until this is set. 1.0 shipped that way. The reviewer
-happened to use Sign in with Apple; the App Review notes invite them to
-use email instead, so that was luck rather than design.
+The docs also say the default service **refuses any address that is not a
+member of the project's organization**, failing with `Email address not
+authorized`. **That did not match observed behaviour here.** On 17–18
+August, before custom SMTP was configured, `auth_logs` shows successful
+`/otp` and `/verify` for `pscattan@gmail.com` and `allaleventul@gmail.com`
+— real users sent the App Store link, not org members. Whatever the
+documented rule is, it was not being enforced on this project.
 
-The client makes it worse by being tidy: `handleEmailCode` in
-`sign-in.tsx` catches the failure and shows "Couldn't send the code.
-Check the address and try again." A stranger reads that as their own typo
-and retries forever.
+Recorded because it cuts both ways: don't assume the restriction protects
+you from anything, and don't assume it will keep letting strangers
+through either. The rate limit was reason enough on its own.
+
+The client hides all of it: `handleEmailCode` in `sign-in.tsx` catches
+any send failure and shows "Couldn't send the code. Check the address and
+try again," so a server-side problem reads as the user's own typo.
 
 ### Provider: Brevo
 
