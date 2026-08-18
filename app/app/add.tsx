@@ -196,7 +196,7 @@ export default function AddItemScreen() {
                 disabled={!canSave}
                 style={[styles.saveButton, { backgroundColor: t.accent }, !canSave && styles.saveButtonDisabled]}>
                 <Text style={[styles.saveButtonText, { color: t.accentInk }]}>
-                  {editingItem ? 'Update location' : 'Save the spot'}
+                  {editingItem ? 'Save changes' : 'Save the spot'}
                 </Text>
               </Pressable>
               <Pressable onPress={() => router.back()} style={[styles.cancelButton, { borderColor: t.border }]}>

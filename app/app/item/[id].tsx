@@ -55,14 +55,15 @@ export default function ItemDetailScreen() {
             </Text>
 
             {/* Side by side, the primary button gets whatever "Delete"
-                doesn't need — which at large text sizes clipped "It
-                moved — update" down to "It mov". Stacked, both get the
-                full width. */}
+                doesn't need, which at large text sizes clipped the label
+                to its first few characters. Stacked, both get the full
+                width. Still needed with the shorter label — "Delete" is
+                what squeezes, and it doesn't get narrower. */}
             <View style={[styles.actions, isLarge && styles.actionsStacked]}>
               <Pressable
                 onPress={() => router.push({ pathname: '/add', params: { id: item.id } })}
                 style={[styles.primaryButton, isLarge && styles.buttonStacked, { backgroundColor: t.accent }]}>
-                <Text style={[styles.primaryButtonText, { color: t.accentInk }]}>It moved — update</Text>
+                <Text style={[styles.primaryButtonText, { color: t.accentInk }]}>Move/Update</Text>
               </Pressable>
               <Pressable onPress={handleDelete} style={[styles.deleteButton, isLarge && styles.buttonStacked, { borderColor: t.border }]}>
                 <Text style={[styles.deleteButtonText, { color: t.danger }]}>Delete</Text>
