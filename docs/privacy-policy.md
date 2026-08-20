@@ -1,14 +1,15 @@
 # Privacy Policy for Stasher
 
-**Effective date:** 25 July 2026
-**Last updated:** 25 July 2026
+**Effective date:** 19 August 2026
+**Last updated:** 19 August 2026
 
 Stasher is a home-inventory app: you record where you put things, and the
 people in your household can see the same list. This policy explains what
 the app stores, where it lives, and what you can do about it.
 
 Short version: Stasher stores your email address, the items you write
-down, and nothing else. There are no ads, no analytics, no trackers, and
+down, and — if you sign in with Google — the name and profile picture on
+that Google account. There are no ads, no analytics, no trackers, and
 nothing is sold or shared with anyone.
 
 ---
@@ -141,7 +142,9 @@ Your account and items are kept until you delete them.
   rejoining with the invite code restores them. Contact us if you want a
   household you've left permanently erased.
 - **Deleting your account** permanently deletes your account and sign-in
-  details. If you were the only person in your household, the household
+  details. If you signed in with Google, Stasher also revokes its own
+  access, so it stops appearing in the list of connected apps on your
+  Google account. If you were the only person in your household, the household
   and everything in it is deleted too. If other people are still in it,
   their items remain — they belong to the household, not to you alone.
 

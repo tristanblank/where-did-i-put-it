@@ -157,7 +157,7 @@ Functionality** only, it **is** linked to the user's identity, and it is
 | Contact Info | **Email Address** | Sign-in. May be an Apple private-relay address. |
 | Contact Info | **Name** | The display name a user types for themselves. |
 | User Content | **Other User Content** | Item names, notes, rooms, spots, containers. |
-| Identifiers | **User ID** | The account UUID, and Apple's `sub`. |
+| Identifiers | **User ID** | The account UUID, and the `sub` from Apple or Google. |
 
 Final question — "Do you use data to track you?" — is **No**. That keeps
 the app off the "Data Used to Track You" card and means no App Tracking
@@ -169,6 +169,20 @@ It's optional in the UI and might be a nickname, but Apple has no
 "optional" exemption: collected at all means declared. In practice people
 type their real first name. Over-declaring costs nothing; under-declaring
 is a compliance problem.
+
+### The Google profile picture
+
+Signing in with Google also hands over a URL to the profile picture on
+that account, which Supabase stores on the user record. It is **not**
+declared under Photos or Videos. That category describes photo content an
+app collects from you, and claiming it would describe this app less
+accurately than leaving it off. The privacy policy states plainly that
+the picture is received and unused, which is where someone would actually
+look for it.
+
+Google also supplies the account's name, which lands in the **Name** type
+already declared for the display name. No new declaration, but the reason
+is now twofold.
 
 ### Deliberately not declared
 
