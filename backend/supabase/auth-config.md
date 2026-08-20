@@ -129,6 +129,55 @@ comma is enough to stop it matching. One value is easier to get right.
 The app shows only "Sign in with Google failed. Please try again," so
 `auth_logs` is the only place this is visible.
 
+### The second wall: the nonce check
+
+Fixing the audience does not finish it. The next attempt failed with a
+different error:
+
+```
+invalid request: Passed nonce and nonce in id_token should either both
+exist or not.
+```
+
+Google mints an ID token carrying a `nonce` claim and the client passes
+none. `signInWithGoogle` cannot simply supply one: the public build of
+`@react-native-google-signin` does not accept a custom nonce
+(react-native-google-signin/google-signin#1176), which is why Supabase's
+own docs steer that library's users to `signInWithOAuth` instead.
+
+The fix is **Skip nonce check**, on the same Google provider page. It is
+what Supabase's Login with Google guide prescribes for iOS.
+
+That is a real reduction and not a formality: nonce validation is what
+stops a captured ID token being replayed. It also stops the check for
+Apple, whose tokens *do* carry a nonce this app generates and passes
+correctly. Accepted because the alternative is giving up the native
+sheet for a browser redirect. Revisit if nonce support ever reaches the
+library's public build.
+
+**Both fields have to be right in the same save.** The save that enabled
+the nonce skip also cleared Authorized Client IDs, so the audience error
+came straight back and read as the nonce fix having failed.
+
+Confirmed working 2026-08-20 01:13 UTC: `user_signedup` with
+`"traits":{"provider":"google"}` and `login_method: oidc`.
+
+### The at_hash warning
+
+Every successful Google sign-in also logs:
+
+```
+ID token has a at_hash claim, but no access_token parameter was
+provided. In future versions, access_token will be mandatory as it's
+security best practice.
+```
+
+Sign-in succeeds today; this is a deprecation notice. GoTrue intends to
+require the access token alongside the ID token.
+`GoogleSignin.getTokens()` returns one and `signInWithIdToken` takes an
+`access_token` field, so the fix is small — but it is unmade, and it
+will break Google sign-in on the release that enforces it.
+
 The iOS OAuth client must carry the bundle id `com.tb.wheredidiputit`.
 Google matches on it, and a mismatch fails at the sheet.
 
