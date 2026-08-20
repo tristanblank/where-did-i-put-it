@@ -181,6 +181,29 @@ that release arrives as a no-op here. It is not only silence bought:
 given an `access_token`, GoTrue checks the `at_hash` claim against it
 instead of ignoring the claim.
 
+### The same address on two providers
+
+Someone who has been signing in with an emailed code and then taps **Sign
+in with Google** lands in the account they already had. GoTrue links the
+second identity onto the existing `auth.users` row instead of creating
+another one, and the household comes with it: `profiles.household_id` is
+keyed by user id, and `handle_new_user()` only fires on insert into
+`auth.users`.
+
+Verified 2026-08-20 01:48 UTC. A fresh address signed up by OTP as
+`e977f416`, then signed in with Google 31 seconds later — logged as
+`login`, not `user_signedup`, against that same id.
+`evyusupova@gmail.com` is the same thing arrived at by accident weeks
+earlier: identities `[email, apple]`, one user, one household.
+
+Linking keys on a **verified email match**, so it does not rescue
+everyone. An Apple private-relay address is a genuinely different
+address and never links — both `@privaterelay.appleid.com` accounts here
+have their own user row. Anyone who signed up through Apple with Hide My
+Email and later signs in with Google gets a new, empty account, and the
+invite code is the only way back to their household. Worth knowing
+before answering a "where did my stuff go" email.
+
 The iOS OAuth client must carry the bundle id `com.tb.wheredidiputit`.
 Google matches on it, and a mismatch fails at the sheet.
 
