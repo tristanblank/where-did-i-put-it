@@ -111,6 +111,24 @@ with the wrong audience and Supabase rejects it — the sign-in sheet
 succeeds and the app still doesn't let you in, which reads as a broken
 account rather than a config error.
 
+**Confirmed on the first real attempt.** Supabase's *Authorized Client
+IDs* had not taken the Web ID, and `auth_logs` gave:
+
+```
+invalid request: Unacceptable audience in id_token:
+[730159609010-vapt1rhhhlik7vfcab2b774b035epvp5.apps.googleusercontent.com]
+```
+
+The audience in that message is the **Web** client ID, which settles
+which one the native SDK signs against on iOS: the web one. It is the
+value that must appear in Authorized Client IDs. Listing the iOS ID as
+well is harmless but not what makes it work.
+
+The field takes a comma-separated list, and a stray space around the
+comma is enough to stop it matching. One value is easier to get right.
+The app shows only "Sign in with Google failed. Please try again," so
+`auth_logs` is the only place this is visible.
+
 The iOS OAuth client must carry the bundle id `com.tb.wheredidiputit`.
 Google matches on it, and a mismatch fails at the sheet.
 
