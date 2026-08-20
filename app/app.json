@@ -2,7 +2,7 @@
   "expo": {
     "name": "Stasher",
     "slug": "where-did-i-put-it",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "stasher",
@@ -48,7 +48,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.FILL-IN-REVERSED-IOS-CLIENT-ID"
+          "iosUrlScheme": "com.googleusercontent.apps.730159609010-e9t5lfsq66q8td3s8pn0c1evftoarpf6"
         }
       ]
     ],

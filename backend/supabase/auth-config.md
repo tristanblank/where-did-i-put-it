@@ -76,14 +76,33 @@ discarded, and takes the code down with it. That was a real bug.
 
 ### Google's client IDs
 
-Three values, from **Google Cloud Console → APIs & Services →
-Credentials**, and they are not interchangeable:
+Three values, from **Google Cloud Console → APIs & Services → Google Auth
+Platform → Clients** (the old "OAuth consent screen" menu is gone), and
+they are not interchangeable:
 
 | Value | Where it goes |
 |---|---|
 | **iOS** client ID | `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` |
 | **Web** client ID | `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`, *and* Supabase's **Authorized Client IDs** |
 | Reversed **iOS** client ID | `iosUrlScheme` in `app.json` |
+
+Recorded here because only the reversed one is committed — the other two
+live in EAS environment variables and a gitignored `.env.local`, so
+nothing else in the repo would let you rebuild this. They are public
+identifiers that ship inside the binary; there is no secret among them.
+
+Google Cloud project `Stasher`, project number `730159609010`:
+
+```
+iOS       730159609010-e9t5lfsq66q8td3s8pn0c1evftoarpf6.apps.googleusercontent.com
+Web       730159609010-vapt1rhhhlik7vfcab2b774b035epvp5.apps.googleusercontent.com
+Reversed  com.googleusercontent.apps.730159609010-e9t5lfsq66q8td3s8pn0c1evftoarpf6
+```
+
+The **client secret** on the Web client is not used and must not be. The
+native flow exchanges an ID token, which Supabase verifies against
+Google's public keys. A secret has no home in an `EXPO_PUBLIC_` variable
+— anything with that prefix is inlined into the JS bundle.
 
 The Web client ID is required even though the app is iOS-only. Google
 mints the ID token against the *web* client, and that is the audience
