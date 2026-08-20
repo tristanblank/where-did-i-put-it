@@ -218,9 +218,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("Google didn't return an identity token");
     }
 
+    // Every successful sign-in logs a GoTrue warning: the ID token carries
+    // an `at_hash` claim with no access_token beside it, and access_token
+    // "will be mandatory" in a future version. Sending it now means that
+    // change lands as a no-op instead of breaking Google sign-in for
+    // everyone at once. It also buys a real check rather than just silence
+    // — given the value, GoTrue verifies the hash in the token against it.
+    //
+    // The fallback is deliberate: fetching this can fail on a bad network,
+    // and today that must not turn a working sign-in into a failed one.
+    // When access_token does become mandatory, this path stops working on
+    // its own, loudly, at Supabase — which is the right place for it.
+    let accessToken: string | undefined;
+    try {
+      accessToken = (await GoogleSignin.getTokens()).accessToken;
+    } catch (e) {
+      console.error('Google getTokens failed; signing in without access_token', e);
+    }
+
     const { error } = await supabase.auth.signInWithIdToken({
       provider: 'google',
       token: idToken,
+      access_token: accessToken,
     });
     if (error) throw error;
   };
@@ -248,9 +267,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
   };
 
+  // The Google SDK holds a cached account of its own, separate from the
+  // Supabase session and untouched by signing out of Supabase. Left in
+  // place, the next tap of "Sign in with Google" can reuse it without ever
+  // showing the chooser — so a second person on the same phone can't sign
+  // in, and nobody can switch Google accounts. Best-effort: a failure here
+  // must not block the sign-out that actually matters, and there's nothing
+  // the user could do about it.
+  const signOutOfGoogleSdk = async () => {
+    if (!googleSignInConfigured) return;
+    try {
+      await GoogleSignin.signOut();
+    } catch (e) {
+      console.error('Google SDK sign-out failed', e);
+    }
+  };
+
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) throw error;
+    await signOutOfGoogleSdk();
   };
 
   // The client only ever holds the anon key, which can't delete an
@@ -261,8 +297,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const deleteAccount = async () => {
     const { error } = await supabase.rpc('delete_own_account');
     if (error) throw error;
+
+    // Revoke rather than just sign out: the account that grant belonged to
+    // no longer exists, so leaving Stasher listed under the user's Google
+    // account permissions is a leftover of something they asked to be
+    // destroyed. Harmless no-op for anyone who signed in another way.
+    if (googleSignInConfigured) {
+      try {
+        await GoogleSignin.revokeAccess();
+      } catch (e) {
+        console.error('Google access revocation failed', e);
+      }
+    }
+
+    // The user row is already gone, so /logout answers 403 user_not_found —
+    // seen in auth_logs on the first real deletion. auth-js swallows
+    // 401/403/404 there and clears the local session anyway, so this
+    // resolves cleanly today. Throwing on it would mean a change to that
+    // behaviour reports failure for a deletion that already succeeded and
+    // cannot be retried. Log it and let the caller finish.
     const { error: signOutError } = await supabase.auth.signOut();
-    if (signOutError) throw signOutError;
+    if (signOutError) console.error('Sign-out after account deletion failed', signOutError);
   };
 
   const refreshHouseholdId = async () => {

@@ -173,10 +173,13 @@ security best practice.
 ```
 
 Sign-in succeeds today; this is a deprecation notice. GoTrue intends to
-require the access token alongside the ID token.
-`GoogleSignin.getTokens()` returns one and `signInWithIdToken` takes an
-`access_token` field, so the fix is small — but it is unmade, and it
-will break Google sign-in on the release that enforces it.
+require the access token alongside the ID token, and the release that
+enforces it would break Google sign-in for every user at once.
+
+`signInWithGoogle` now sends one, from `GoogleSignin.getTokens()`, so
+that release arrives as a no-op here. It is not only silence bought:
+given an `access_token`, GoTrue checks the `at_hash` claim against it
+instead of ignoring the claim.
 
 The iOS OAuth client must carry the bundle id `com.tb.wheredidiputit`.
 Google matches on it, and a mismatch fails at the sheet.
