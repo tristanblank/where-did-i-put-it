@@ -38,6 +38,27 @@ eas env:create --environment production \
 inlined into the client bundle by design. The anon key is safe there; RLS
 is what protects the data.
 
+Both must also show `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` and
+`EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID`. A build missing those doesn't crash:
+`googleSignInConfigured` goes false and the Google button quietly doesn't
+render, which nobody notices until a user asks where it went.
+
+Three more things Google sign-in depends on are invisible to every check
+above, because none of them are in the build:
+
+- `iosUrlScheme` in `app.json` is a build-time literal, so the env-var
+  check cannot cover it. Read it by eye against the reversed iOS client
+  ID in `backend/supabase/auth-config.md`.
+- **Authorized Client IDs** on Supabase's Google provider must hold the
+  Web client ID, with no stray space around the comma.
+- **Skip nonce check** on that same page must be on, or every Google
+  sign-in fails on the nonce.
+
+The last two are dashboard state: no history, no export, nothing in this
+repo that would restore them. A project restore or anyone tidying that
+page reverts them silently, and the app reports only "Sign in with Google
+failed" whichever one broke. `auth_logs` is where the real error is.
+
 ---
 
 ## Preview build — for testing
