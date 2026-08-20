@@ -251,3 +251,24 @@ setting while the app is open.
 
 Plain language on purpose: "Dynamic Type" is Apple's word for it, not
 something a user reading the store page would search for or recognise.
+
+---
+
+## What's New (4000 chars) — 1.0.2
+
+```
+You can now sign in with Google, alongside Sign in with Apple and the
+emailed sign-in code. Same household, same things in it — just one more
+way in.
+```
+
+Everything else in 1.0.2 is invisible from the outside: the ID token now
+carries the access token Supabase intends to start requiring, signing out
+clears the Google account the SDK had cached, and deleting an account
+revokes its Google grant. None of that is worth a line on a store page.
+
+The one thing this release *does* change for an existing user: someone
+who has been signing in with an emailed code now sees a Google button. If
+they tap it with the same address, Supabase links the two identities and
+they land in the household they already had. See
+`backend/supabase/auth-config.md` for the mechanism.
