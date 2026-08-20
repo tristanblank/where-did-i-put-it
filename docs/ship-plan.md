@@ -161,6 +161,31 @@ exists because that check wasn't made on the last one.
 
 ---
 
+## 1.0.2 — Sign in with Google
+
+Submitted for review 19 August 2026: build **7**, version **1.0.2**, from
+commit `7bd131b`, uploaded with `eas submit --id`.
+
+Contents: `5880698` (the feature), `066660b` (sends `access_token` with
+the ID token, signs out of the Google SDK, revokes the grant on account
+deletion), plus documentation. The Supabase side is not in this repo —
+**Authorized Client IDs** and **Skip nonce check** on the Google
+provider, both recorded in `backend/supabase/auth-config.md`.
+
+Verified before submitting, on the production-signed preview build:
+Google sign-up, sign-out, sign-in, and account deletion, with the
+`at_hash` warning confirmed gone from `auth_logs`. An address that signed
+up by emailed code and then used Google linked onto the same account and
+kept its household.
+
+Metadata changed this time, unlike 1.0.1: What's New, and a privacy
+policy that now discloses Google. The policy is served from `/docs` on
+`master` by GitHub Pages — it was 17 commits stale at the point the
+binary was uploaded, so the URL on the listing described an app without
+Google in it. **Push before submitting, not after.**
+
+---
+
 ## v1.1 — Voice Stashing & Search (the headline follow-up)
 
 The feature that turns the app from a form into something you talk to: "I put the passport in the hallway closet, top shelf, in the blue box" → parsed and saved. Same pipeline in reverse answers "where's the passport?" hands-free.
