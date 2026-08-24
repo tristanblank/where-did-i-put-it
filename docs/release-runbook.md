@@ -61,6 +61,75 @@ failed" whichever one broke. `auth_logs` is where the real error is.
 
 ---
 
+## Which build you actually need
+
+The EAS free plan allows a limited number of iOS builds per month, shared
+across every profile — preview and production come out of the same pot.
+It ran out on **23 August 2026**, with 1.0.3 written, committed, pushed
+and unbuildable for the seven days until the quota reset. There is no
+local fallback: iOS builds need macOS, and this project is developed on
+Windows, which is the same constraint that put `store-screenshots.js` in
+the repo.
+
+So the question before every build is which kind you need, and most of
+the time the answer is none.
+
+**No build at all.** Anything that is only JavaScript reaches the phone
+over Metro: screens, components, styles, copy, images referenced from JS,
+even a new npm package as long as it ships no native code. Start the dev
+server and save the file.
+
+**Development build.** Built once, then reusable indefinitely. It is a
+dev client, so it connects to Metro — every JS change after it is a save,
+not a build — and it shows the actual error on screen when something
+throws.
+
+```bash
+eas build --profile development --platform ios
+```
+
+**Preview build.** A standalone binary at release settings, ad-hoc signed
+for registered devices. Worth a slot when you need to see what a user
+gets: cold start, release-mode behaviour, no dev overlay. Not for
+iterating.
+
+**Production build.** Store signing, auto-incrementing build number, and
+the only kind App Store Connect accepts — an ad-hoc preview build cannot
+be submitted in its place, so there is no way to spend your way out of
+having none left.
+
+### What actually forces a new native build
+
+- `app.json`: plugins and their options, the `ios`/`android` blocks,
+  icons, the splash screen config, `scheme`, bundle identifier
+- Any dependency containing native code
+- `expo.version`, and only for a build you mean to submit
+
+If the change isn't in that list, it doesn't need a build.
+
+### The evening that wrote this section
+
+Four preview builds went on one feature in a single evening. Three were
+chasing the same crash: read the code, form a hypothesis, rebuild to test
+it, guess wrong, repeat. A development build would have put the error on
+screen the first time — it turned out to be a one-line type mistake that
+a redbox names outright — and it would have cost one slot instead of
+three, with that slot still usable afterwards.
+
+Rebuilding to test a hypothesis is the expensive habit. Rebuilding
+because JS changed is the wasteful one. If you catch yourself doing
+either twice, stop and build a dev client.
+
+### A refused build still takes its number
+
+`appVersionSource: "remote"` means EAS holds the build-number counter, and
+it increments before the quota is checked. The build refused on 23 August
+had already gone 7 → 8, so the next production build is 9. Harmless —
+App Store Connect only requires the number to increase — but the gap is
+expected rather than something to go hunting for.
+
+---
+
 ## Preview build — for testing
 
 Ad-hoc distribution. Installs only on devices whose UDIDs are registered.

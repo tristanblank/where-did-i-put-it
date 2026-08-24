@@ -268,7 +268,7 @@ this file warns about.
 |---|---|
 | Apple Developer Program | $99/yr |
 | Supabase | Free tier (fine into thousands of users) |
-| Expo EAS | Free tier (limited builds/month — sufficient) |
+| Expo EAS | Free tier (limited iOS builds/month — ran out once, see the runbook) |
 | **Total to launch** | **$99** |
 
 ## The one rule
