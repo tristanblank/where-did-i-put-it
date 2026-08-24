@@ -12,17 +12,26 @@ import {
   EncodeSansSemiExpanded_800ExtraBold,
   useFonts,
 } from '@expo-google-fonts/encode-sans-semi-expanded';
+import { Outfit_400Regular, Outfit_600SemiBold } from '@expo-google-fonts/outfit';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
+import { AnimatedSplash } from '@/components/animated-splash';
 import { Colors, Fonts } from '@/constants/theme';
 import { AuthProvider, useAuth } from '@/lib/auth-store';
 import { ItemsProvider, useItemsStore } from '@/lib/items-store';
 
 SplashScreen.preventAutoHideAsync();
+
+// iOS only, and only a few frames long. AnimatedSplash draws a copy of
+// the native splash and hides the real one underneath it, so this fade
+// covers the swap itself — without it, the handoff is a hard cut between
+// two images that happen to be identical, which shows up as a flicker on
+// slower devices.
+SplashScreen.setOptions({ duration: 250, fade: true });
 
 const navFonts: Theme['fonts'] = {
   regular: { fontFamily: Fonts.regular, fontWeight: '400' },
@@ -82,13 +91,22 @@ function RootLayoutNav() {
     EncodeSansSemiExpanded_600SemiBold,
     EncodeSansSemiExpanded_700Bold,
     EncodeSansSemiExpanded_800ExtraBold,
+    // Only the splash animation uses these; see DisplayFonts in the theme.
+    Outfit_400Regular,
+    Outfit_600SemiBold,
   });
+
+  const [splashFinished, setSplashFinished] = useState(false);
 
   const ready = (fontsLoaded || fontError) && !loading && !initializing;
 
+  // AnimatedSplash hides the native splash itself, once it has actually
+  // been laid out. This is the backstop: if that component ever fails to
+  // mount, the native splash would otherwise stay up forever and the app
+  // would look hung.
   useEffect(() => {
     if (ready) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {});
     }
   }, [ready]);
 
@@ -122,6 +140,11 @@ function RootLayoutNav() {
         </Stack.Protected>
       </Stack>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      {/* Last child, so it covers the navigator, and mounted only while
+          it has something to do — once it has faded out it is gone from
+          the tree entirely rather than sitting there transparent and
+          swallowing nothing. */}
+      {!splashFinished && <AnimatedSplash onFinish={() => setSplashFinished(true)} />}
     </ThemeProvider>
   );
 }

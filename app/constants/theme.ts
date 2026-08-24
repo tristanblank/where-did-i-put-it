@@ -32,3 +32,12 @@ export const Fonts = {
   bold: 'EncodeSansSemiExpanded_700Bold',
   extraBold: 'EncodeSansSemiExpanded_800ExtraBold',
 } as const;
+
+// Outfit, from the splash artboard in design/. The launch animation is
+// the only place it appears — the app itself is Encode Sans throughout,
+// and mixing the two anywhere else would read as an accident rather than
+// as a title card.
+export const DisplayFonts = {
+  regular: 'Outfit_400Regular',
+  semiBold: 'Outfit_600SemiBold',
+} as const;

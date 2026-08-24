@@ -3,3 +3,10 @@
 !.env.example
 *.pem
 *.key
+
+# Generated previews of the tutorial slides and the splash animation.
+# Regenerated from the components by the scripts in the scratchpad — the
+# source of truth is the code they replicate, and committing 2MB of PNGs
+# that go stale on the next style change is the wrong half to keep.
+design/tutorial-preview/
+design/splash-preview/
