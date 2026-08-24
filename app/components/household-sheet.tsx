@@ -280,6 +280,11 @@ export function HouseholdSheet({ visible, onClose }: HouseholdSheetProps) {
           </View>
         ) : null}
 
+        {/* The walkthrough used to be offered from here. It moved to the
+            "?" button on the home screen, next to submitting feedback —
+            two ways in is one more than anyone needs, and "?" is where
+            people look for help. This sheet goes back to being about the
+            household. */}
         <Pressable style={[styles.cancelRow, { borderColor: t.border }]} onPress={onClose}>
           <Text style={[styles.cancelText, { color: t.sub }]}>Close</Text>
         </Pressable>

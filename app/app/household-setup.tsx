@@ -6,6 +6,7 @@ import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useAuth } from '@/lib/auth-store';
 import { useLargeText } from '@/hooks/use-large-text';
+import { armTutorial } from '@/hooks/use-tutorial';
 import { useTheme } from '@/hooks/use-theme';
 import { useItemsStore } from '@/lib/items-store';
 import { migrateLegacyLocalData } from '@/lib/migrate-legacy-data';
@@ -83,6 +84,7 @@ export default function HouseholdSetupScreen() {
         'Household created',
         "Your household was created, but something didn't finish (like moving over your old items). You can keep going — check your items once you're in, and grab your invite code later from the 👥 button on the home screen."
       );
+      await armTutorial();
       await refreshHouseholdId();
     } finally {
       setBusy(false);
@@ -96,8 +98,11 @@ export default function HouseholdSetupScreen() {
     });
   };
 
-  const handleContinue = () => {
-    refreshHouseholdId();
+  // Arming has to land before the guard flips: refreshHouseholdId() is what
+  // mounts the home screen, and the home screen reads the flag as it mounts.
+  const handleContinue = async () => {
+    await armTutorial();
+    await refreshHouseholdId();
   };
 
   const handleDeleteAccount = () => {
@@ -136,6 +141,9 @@ export default function HouseholdSetupScreen() {
     try {
       const { error: rpcError } = await supabase.rpc('join_household', { code: trimmed });
       if (rpcError) throw rpcError;
+      // Joining is a new account too — someone handed them a code and this
+      // is still the first time they have seen the app.
+      await armTutorial();
       await refreshHouseholdId();
     } catch {
       setError("That code didn't work — double-check it and try again.");

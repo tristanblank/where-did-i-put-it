@@ -6,14 +6,18 @@ import * as Haptics from 'expo-haptics';
 
 import { AddRoomSheet } from '@/components/add-room-sheet';
 import { Chip } from '@/components/chip';
+import { HelpSheet } from '@/components/help-sheet';
 import { HouseholdSheet } from '@/components/household-sheet';
 import { ItemCard } from '@/components/item-card';
 import { LabelPath } from '@/components/label-path';
 import { RoomActionsSheet } from '@/components/room-actions-sheet';
+import { Tutorial } from '@/components/tutorial';
+import { TutorialBoundary } from '@/components/tutorial-boundary';
 import { Fonts } from '@/constants/theme';
 import { baseTileStyle } from '@/constants/tile-style';
 import { useLargeText } from '@/hooks/use-large-text';
 import { useTheme } from '@/hooks/use-theme';
+import { useTutorial } from '@/hooks/use-tutorial';
 import { useItemsStore } from '@/lib/items-store';
 
 export default function HomeScreen() {
@@ -25,7 +29,9 @@ export default function HomeScreen() {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [householdSheetOpen, setHouseholdSheetOpen] = useState(false);
   const [addRoomOpen, setAddRoomOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { isLarge, fontScale } = useLargeText();
+  const { visible: tutorialVisible, dismiss: dismissTutorial, replay: replayTutorial } = useTutorial();
   const longPressTriggered = useRef(false);
 
   const bentoRooms = useMemo(() => {
@@ -49,178 +55,205 @@ export default function HomeScreen() {
   }, [sortedItems, query]);
 
   return (
-    <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]} edges={['top']}>
-      {/* Keyed on fontScale so a text-size change remounts the tree.
-          Without it, headings rendered as clipped slivers: a Text whose
-          own props don't change is skipped on re-render — the React
-          Compiler memoizes these aggressively — so its native view keeps
-          the height it was measured at under the old font size while the
-          glyphs inside it get bigger. Everything that *did* re-render
-          (the tiles, which take isLarge in their style) measured
-          correctly, which is exactly the split the screenshots showed.
-          Remounting is blunt, but it re-measures everything and costs a
-          scroll position on an action nobody takes twice in a session. */}
-      <ScrollView key={fontScale} contentContainerStyle={styles.content}>
-        {/* A row at default size; a stack once the title is wide enough to
-            shove the buttons off the edge. Those buttons are the only way
-            into the household sheet, which is the only way to delete an
-            account — losing them offscreen isn't cosmetic. */}
-        <View style={[styles.headerRow, isLarge && styles.headerRowStacked]}>
-          <View style={styles.headerTitleGroup}>
-            <Text style={[styles.eyebrow, { color: t.accent }]}>Household index</Text>
-            <Text style={[styles.title, { color: t.ink }]}>Stasher</Text>
-          </View>
-          <View style={styles.headerButtons}>
-            <Pressable
-              onPress={() => setHouseholdSheetOpen(true)}
-              style={[baseTileStyle(t, theme), styles.themeToggle]}>
-              <Text allowFontScaling={false} style={styles.themeToggleIcon}>👥</Text>
-            </Pressable>
-            <Pressable onPress={toggleTheme} style={[baseTileStyle(t, theme), styles.themeToggle]}>
-              <Text allowFontScaling={false} style={styles.themeToggleIcon}>{theme === 'light' ? '🌙' : '☀️'}</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <TextInput
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search items, boxes, shelves…"
-          placeholderTextColor={t.sub}
-          style={[
-            styles.searchInput,
-            { borderColor: t.border, backgroundColor: theme === 'dark' ? t.tileAlt : t.tile, color: t.ink },
-          ]}
-        />
-
-        {searchResults ? (
-          searchResults.length === 0 ? (
-            <View style={[baseTileStyle(t, theme), styles.noMatchesTile]}>
-              <Text style={[styles.noMatchesTitle, { color: t.ink }]}>No matches</Text>
-              <Text style={[styles.noMatchesBody, { color: t.sub }]}>
-                Try a different word — maybe you filed it under the box, not the item.
-              </Text>
+    // The walkthrough covers this whole screen, safe areas included, so it
+    // needs a positioning parent outside the SafeAreaView rather than in
+    // it. It handles its own insets.
+    <View style={[styles.screen, { backgroundColor: t.bg }]}>
+      <SafeAreaView style={[styles.screen, { backgroundColor: t.bg }]} edges={['top']}>
+        {/* Keyed on fontScale so a text-size change remounts the tree.
+            Without it, headings rendered as clipped slivers: a Text whose
+            own props don't change is skipped on re-render — the React
+            Compiler memoizes these aggressively — so its native view keeps
+            the height it was measured at under the old font size while the
+            glyphs inside it get bigger. Everything that *did* re-render
+            (the tiles, which take isLarge in their style) measured
+            correctly, which is exactly the split the screenshots showed.
+            Remounting is blunt, but it re-measures everything and costs a
+            scroll position on an action nobody takes twice in a session. */}
+        <ScrollView key={fontScale} contentContainerStyle={styles.content}>
+          {/* A row at default size; a stack once the title is wide enough to
+              shove the buttons off the edge. Those buttons are the only way
+              into the household sheet, which is the only way to delete an
+              account — losing them offscreen isn't cosmetic. */}
+          <View style={[styles.headerRow, isLarge && styles.headerRowStacked]}>
+            <View style={styles.headerTitleGroup}>
+              <Text style={[styles.eyebrow, { color: t.accent }]}>Household index</Text>
+              <Text style={[styles.title, { color: t.ink }]}>Stasher</Text>
             </View>
-          ) : (
-            <View style={styles.resultsList}>
-              {searchResults.map((item) => (
-                <ItemCard
-                  key={item.id}
-                  item={item}
-                  onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
-                />
-              ))}
-            </View>
-          )
-        ) : (
-          <>
-            {/* Same problem as the header: the label grows and pushes the
-                chips past the right edge, where they can't be tapped. */}
-            <View style={[styles.sortRow, isLarge && styles.sortRowStacked]}>
-              <Text style={[styles.sortLabel, { color: t.sub }]}>Sort rooms</Text>
-              <View style={styles.sortPills}>
-                <Chip label="By count" active={roomSort === 'count'} onPress={() => setRoomSort('count')} />
-                <Chip label="A–Z" active={roomSort === 'alpha'} onPress={() => setRoomSort('alpha')} />
-              </View>
-            </View>
-
-            <View style={styles.grid}>
-              <View style={[baseTileStyle(t, theme), styles.statTile, isLarge && styles.fullWidthTile, { backgroundColor: t.accent, borderWidth: 0 }]}>
-                <Text style={[styles.statNumber, { color: t.accentInk }]}>{items.length}</Text>
-                <Text style={[styles.statLabel, { color: t.accentInk }]}>Things stashed</Text>
-              </View>
-
-              <Pressable onPress={() => router.push('/add')} style={[baseTileStyle(t, theme), styles.addTile, isLarge && styles.fullWidthTile]}>
-                <Text allowFontScaling={false} style={styles.addIcon}>➕</Text>
-                <Text style={[styles.addLabel, { color: t.ink }]}>Stash something</Text>
-              </Pressable>
-
-              {bentoRooms.map(({ room, count }) => (
-                <Pressable
-                  key={room}
-                  onPressIn={() => {
-                    longPressTriggered.current = false;
-                  }}
-                  onLongPress={() => {
-                    longPressTriggered.current = true;
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                    setActiveRoom(room);
-                  }}
-                  delayLongPress={450}
-                  onPress={() => {
-                    if (longPressTriggered.current) {
-                      longPressTriggered.current = false;
-                      return;
-                    }
-                    router.push({ pathname: '/room/[room]', params: { room } });
-                  }}
-                  style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
-                  <View>
-                    <Text allowFontScaling={false} style={{ fontSize: 22 }}>{iconForRoom(room)}</Text>
-                    <View style={styles.roomNameGroup}>
-                      <Text style={[styles.roomName, { color: t.ink }]}>{room}</Text>
-                    </View>
-                  </View>
-                  <View style={[styles.countBadge, { backgroundColor: count ? t.accentSoft : t.tileAlt }]}>
-                    <Text style={[styles.countText, { color: count ? t.accent : t.sub }]}>{count}</Text>
-                  </View>
-                </Pressable>
-              ))}
-
-              {/* Sits after the rooms rather than beside "Stash something",
-                  so the grid still leads with the two things done most
-                  often and this reads as the end of the room list. */}
+            <View style={styles.headerButtons}>
               <Pressable
-                onPress={() => setAddRoomOpen(true)}
-                style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
-                <View>
-                  <Text allowFontScaling={false} style={{ fontSize: 22 }}>➕</Text>
-                  <View style={styles.roomNameGroup}>
-                    <Text style={[styles.roomName, { color: t.sub }]}>Add a room</Text>
-                  </View>
-                </View>
+                onPress={() => setHouseholdSheetOpen(true)}
+                style={[baseTileStyle(t, theme), styles.themeToggle]}>
+                <Text allowFontScaling={false} style={styles.themeToggleIcon}>👥</Text>
               </Pressable>
-
-              {sortedItems.length > 0 && (
-                <View style={[baseTileStyle(t, theme), styles.recentTile]}>
-                  {/* Sorted by updated_at, not created — so an item that
-                      someone moved surfaces here too, which is the more
-                      useful signal in a shared household and worth naming
-                      honestly. */}
-                  <Text style={[styles.recentLabel, { color: t.sub }]}>Recent updates</Text>
-                  <View style={styles.recentList}>
-                    {sortedItems.slice(0, 3).map((item) => (
-                      <Pressable
-                        key={item.id}
-                        onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}>
-                        <Text style={[styles.recentItemName, { color: t.ink }]}>{item.name}</Text>
-                        <LabelPath parts={[item.room, item.spot, item.pos, item.container]} />
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
+              {/* A drawn "?" rather than ❓, which renders as a fat red
+                  emoji that pulls more attention than the two buttons
+                  either side of it — and this is the least urgent of the
+                  three. */}
+              <Pressable
+                onPress={() => setHelpOpen(true)}
+                style={[baseTileStyle(t, theme), styles.themeToggle]}>
+                <Text allowFontScaling={false} style={[styles.helpIcon, { color: t.ink }]}>?</Text>
+              </Pressable>
+              <Pressable onPress={toggleTheme} style={[baseTileStyle(t, theme), styles.themeToggle]}>
+                <Text allowFontScaling={false} style={styles.themeToggleIcon}>{theme === 'light' ? '🌙' : '☀️'}</Text>
+              </Pressable>
             </View>
+          </View>
 
-            {items.length === 0 && (
-              <View
-                style={[
-                  baseTileStyle(t, theme),
-                  styles.emptyHint,
-                  { borderStyle: 'dashed', borderColor: t.border, shadowOpacity: 0, elevation: 0 },
-                ]}>
-                <Text style={[styles.emptyHintText, { color: t.sub }]}>
-                  Log the passport, the spare keys, the HDMI cables — future you says thanks.
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Search items, boxes, shelves…"
+            placeholderTextColor={t.sub}
+            style={[
+              styles.searchInput,
+              { borderColor: t.border, backgroundColor: theme === 'dark' ? t.tileAlt : t.tile, color: t.ink },
+            ]}
+          />
+
+          {searchResults ? (
+            searchResults.length === 0 ? (
+              <View style={[baseTileStyle(t, theme), styles.noMatchesTile]}>
+                <Text style={[styles.noMatchesTitle, { color: t.ink }]}>No matches</Text>
+                <Text style={[styles.noMatchesBody, { color: t.sub }]}>
+                  Try a different word — maybe you filed it under the box, not the item.
                 </Text>
               </View>
-            )}
-          </>
-        )}
-      </ScrollView>
-      <RoomActionsSheet room={activeRoom} onClose={() => setActiveRoom(null)} />
-      <HouseholdSheet visible={householdSheetOpen} onClose={() => setHouseholdSheetOpen(false)} />
-      <AddRoomSheet visible={addRoomOpen} onClose={() => setAddRoomOpen(false)} />
-    </SafeAreaView>
+            ) : (
+              <View style={styles.resultsList}>
+                {searchResults.map((item) => (
+                  <ItemCard
+                    key={item.id}
+                    item={item}
+                    onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}
+                  />
+                ))}
+              </View>
+            )
+          ) : (
+            <>
+              {/* Same problem as the header: the label grows and pushes the
+                  chips past the right edge, where they can't be tapped. */}
+              <View style={[styles.sortRow, isLarge && styles.sortRowStacked]}>
+                <Text style={[styles.sortLabel, { color: t.sub }]}>Sort rooms</Text>
+                <View style={styles.sortPills}>
+                  <Chip label="By count" active={roomSort === 'count'} onPress={() => setRoomSort('count')} />
+                  <Chip label="A–Z" active={roomSort === 'alpha'} onPress={() => setRoomSort('alpha')} />
+                </View>
+              </View>
+
+              <View style={styles.grid}>
+                <View style={[baseTileStyle(t, theme), styles.statTile, isLarge && styles.fullWidthTile, { backgroundColor: t.accent, borderWidth: 0 }]}>
+                  <Text style={[styles.statNumber, { color: t.accentInk }]}>{items.length}</Text>
+                  <Text style={[styles.statLabel, { color: t.accentInk }]}>Things stashed</Text>
+                </View>
+
+                <Pressable onPress={() => router.push('/add')} style={[baseTileStyle(t, theme), styles.addTile, isLarge && styles.fullWidthTile]}>
+                  <Text allowFontScaling={false} style={styles.addIcon}>➕</Text>
+                  <Text style={[styles.addLabel, { color: t.ink }]}>Stash something</Text>
+                </Pressable>
+
+                {bentoRooms.map(({ room, count }) => (
+                  <Pressable
+                    key={room}
+                    onPressIn={() => {
+                      longPressTriggered.current = false;
+                    }}
+                    onLongPress={() => {
+                      longPressTriggered.current = true;
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                      setActiveRoom(room);
+                    }}
+                    delayLongPress={450}
+                    onPress={() => {
+                      if (longPressTriggered.current) {
+                        longPressTriggered.current = false;
+                        return;
+                      }
+                      router.push({ pathname: '/room/[room]', params: { room } });
+                    }}
+                    style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
+                    <View>
+                      <Text allowFontScaling={false} style={{ fontSize: 22 }}>{iconForRoom(room)}</Text>
+                      <View style={styles.roomNameGroup}>
+                        <Text style={[styles.roomName, { color: t.ink }]}>{room}</Text>
+                      </View>
+                    </View>
+                    <View style={[styles.countBadge, { backgroundColor: count ? t.accentSoft : t.tileAlt }]}>
+                      <Text style={[styles.countText, { color: count ? t.accent : t.sub }]}>{count}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+
+                {/* Sits after the rooms rather than beside "Stash something",
+                    so the grid still leads with the two things done most
+                    often and this reads as the end of the room list. */}
+                <Pressable
+                  onPress={() => setAddRoomOpen(true)}
+                  style={[baseTileStyle(t, theme), styles.smallRoomTile, isLarge && styles.fullWidthTile]}>
+                  <View>
+                    <Text allowFontScaling={false} style={{ fontSize: 22 }}>➕</Text>
+                    <View style={styles.roomNameGroup}>
+                      <Text style={[styles.roomName, { color: t.sub }]}>Add a room</Text>
+                    </View>
+                  </View>
+                </Pressable>
+
+                {sortedItems.length > 0 && (
+                  <View style={[baseTileStyle(t, theme), styles.recentTile]}>
+                    {/* Sorted by updated_at, not created — so an item that
+                        someone moved surfaces here too, which is the more
+                        useful signal in a shared household and worth naming
+                        honestly. */}
+                    <Text style={[styles.recentLabel, { color: t.sub }]}>Recent updates</Text>
+                    <View style={styles.recentList}>
+                      {sortedItems.slice(0, 3).map((item) => (
+                        <Pressable
+                          key={item.id}
+                          onPress={() => router.push({ pathname: '/item/[id]', params: { id: item.id } })}>
+                          <Text style={[styles.recentItemName, { color: t.ink }]}>{item.name}</Text>
+                          <LabelPath parts={[item.room, item.spot, item.pos, item.container]} />
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+
+              {items.length === 0 && (
+                <View
+                  style={[
+                    baseTileStyle(t, theme),
+                    styles.emptyHint,
+                    { borderStyle: 'dashed', borderColor: t.border, shadowOpacity: 0, elevation: 0 },
+                  ]}>
+                  <Text style={[styles.emptyHintText, { color: t.sub }]}>
+                    Log the passport, the spare keys, the HDMI cables — future you says thanks.
+                  </Text>
+                </View>
+              )}
+            </>
+          )}
+        </ScrollView>
+        <RoomActionsSheet room={activeRoom} onClose={() => setActiveRoom(null)} />
+        <HouseholdSheet visible={householdSheetOpen} onClose={() => setHouseholdSheetOpen(false)} />
+        <HelpSheet
+          visible={helpOpen}
+          onClose={() => setHelpOpen(false)}
+          onShowTutorial={() => {
+            setHelpOpen(false);
+            replayTutorial();
+          }}
+        />
+        <AddRoomSheet visible={addRoomOpen} onClose={() => setAddRoomOpen(false)} />
+      </SafeAreaView>
+      {tutorialVisible && (
+        <TutorialBoundary onError={dismissTutorial}>
+          <Tutorial onDone={dismissTutorial} />
+        </TutorialBoundary>
+      )}
+    </View>
   );
 }
 
@@ -277,6 +310,13 @@ const styles = StyleSheet.create({
   },
   themeToggleIcon: {
     fontSize: 18,
+  },
+  helpIcon: {
+    fontFamily: Fonts.bold,
+    fontSize: 18,
+    // The emoji beside it sit on their own baseline; nudging this one up
+    // by a hair puts the three optically level.
+    lineHeight: 21,
   },
   searchInput: {
     borderWidth: 1,
