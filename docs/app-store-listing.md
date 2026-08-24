@@ -286,3 +286,36 @@ who has been signing in with an emailed code now sees a Google button. If
 they tap it with the same address, Supabase links the two identities and
 they land in the household they already had. See
 `backend/supabase/auth-config.md` for the mechanism.
+
+---
+
+## What's New (4000 chars) — 1.0.3
+
+```
+New here? Setting up a household now starts with a short guided tour:
+adding your first thing, updating where it lives when it moves, making
+the rooms match your home, sharing your invite code, and putting your
+name on what you add.
+
+The new ? button on the home screen brings that tour back whenever you
+want it, and it's also where to report a bug or send feedback.
+
+Stasher opens with a new launch animation, too.
+```
+
+Three notes on what this does and doesn't say.
+
+The tour is only offered to accounts that have just been set up — created
+or joined — so the first paragraph is addressed to the people who will
+actually see it. An existing user updating to 1.0.3 gets no tour unless
+they ask for one, which is what the second paragraph is for.
+
+"Report a bug or send feedback" is worth naming explicitly rather than
+folding into "help". Until now the only route was finding the support
+page on GitHub, which nobody does; the version details being filled in
+automatically is the part that makes a report useful, but that belongs in
+the app, not on a store page.
+
+The launch animation gets one line at the end because it is the change
+every existing user sees and the only one that needs no explanation. It
+would be over-selling to lead with it.

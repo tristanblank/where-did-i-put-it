@@ -1,7 +1,7 @@
 # Privacy Policy for Stasher
 
-**Effective date:** 19 August 2026
-**Last updated:** 19 August 2026
+**Effective date:** 23 August 2026
+**Last updated:** 23 August 2026
 
 Stasher is a home-inventory app: you record where you put things, and the
 people in your household can see the same list. This policy explains what
@@ -67,6 +67,23 @@ The content you enter about your belongings:
 Please don't put anything in a note that you wouldn't want the other
 members of your household to read — everyone in a household sees the same
 items and notes.
+
+### If you send feedback
+
+The app has a "Submit feedback / report a bug" option behind the **?**
+button. It opens your own email app with a message addressed to
+**stasherdotapp@gmail.com**, with three lines already filled in: the
+Stasher version, the build number, and your iOS version. Those are there
+because they are the first thing needed to track down a bug.
+
+Nothing is sent unless you send it. The message is composed in your email
+app, so you can see exactly what it says, edit it, delete those three
+lines, or not send it at all. Stasher does not read your mail, and there
+is no in-app form quietly posting anywhere.
+
+What reaches us is then an ordinary email: your email address and
+whatever you chose to write. It is kept only as long as it takes to deal
+with, and never used for anything else.
 
 ### What Stasher does not collect
 

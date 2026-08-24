@@ -66,9 +66,19 @@ Nobody outside your household can see any of it.
 
 ### I found a bug
 
-Please email **stasherdotapp@gmail.com**. What helps most: what you were
-doing, what you expected, and what happened instead. Screenshots are
-welcome.
+In the app: **?** button on the home screen → **Submit feedback / report
+a bug**. That opens an email with your version details already filled in,
+which saves a round trip asking which build you're on.
+
+Or just email **stasherdotapp@gmail.com** directly. What helps most:
+what you were doing, what you expected, and what happened instead.
+Screenshots are welcome.
+
+### How do I see the tour again?
+
+**?** button on the home screen → **Tutorial**. It's the same walkthrough
+shown when a household is first set up, and you can leave it at any point
+with **Skip tour**.
 
 ### Is my data sold or used for ads?
 
