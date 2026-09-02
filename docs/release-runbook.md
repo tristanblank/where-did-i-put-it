@@ -128,6 +128,14 @@ had already gone 7 → 8, so the next production build is 9. Harmless —
 App Store Connect only requires the number to increase — but the gap is
 expected rather than something to go hunting for.
 
+Confirmed on 1 September 2026: `eas build:version:get` reads 8, and the
+development build made that day came out as build 8 as well rather than
+taking a new one. Only the `production` profile sets `autoIncrement`;
+every other profile reuses whatever number EAS is holding. So the same
+number appearing on several builds is normal, and it is not evidence that
+the refused build failed to take one — read the counter, not the build
+list.
+
 ---
 
 ## Preview build — for testing
